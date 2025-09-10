@@ -154,3 +154,52 @@ The trapping potential is modeled via functions of scaled coordinates `(ρ, ζ)`
 * Units are mixed (meters, seconds, normalized units). Be consistent in analysis.
 * The current model uses only the **optical dipole trap potential** (one-body).
 * Future extensions: include atom-atom interactions or external fields.
+
+
+## 🤝 Collaboration Guidelines
+
+This repository is private. If you have been added as a collaborator, you can clone the repository directly:
+
+```bash
+git clone https://github.com/Leonardo-Razzai/MD_simulation
+.git
+cd MD_simulation
+```
+
+### Running Simulations
+
+1. Ensure you have Python 3.9+ and install the dependencies:
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. Run a single simulation with specified MOT temperature `T` (in μK) and displacement `dMOT` (in mm):
+
+   ```bash
+   python simulation.py 15 8
+   ```
+
+   This will simulate atoms at **T = 15 μK** with a MOT displaced **8 mm** from the fiber tip.
+3. Run batch simulations across a range of parameters:
+
+   ```bash
+   python run_multiple_simul.py
+   ```
+
+   Results will be stored in the `data/` folder and plots in `img/`.
+
+### Contributing Changes
+
+* Always create a **new branch** before making changes:
+
+  ```bash
+  git checkout -b feature-description
+  ```
+* Push your branch to the repository:
+
+  ```bash
+  git push origin feature-description
+  ```
+* Open a **Pull Request (PR)** from your branch into `main`.
+  In your PR, briefly describe the changes and any new physics or analysis methods added.
+* All code should follow PEP8 style and include **docstrings** for new functions.
