@@ -207,9 +207,10 @@ cd MD_simulation
   ## To Do
   ### Simulation wise:
   1) Add heating due to temperature
-  2) Extend to the atoms in the fiber to estimate their lifeltime in the fiber
-  3) Add effect of collisions with background gas
-  4) Use the real gaussian beam
+  2) Extract the actual fraction of atoms trapped from the MOT
+  3) Extend to the atoms in the fiber to estimate their lifeltime in the fiber
+  4) Add effect of collisions with background gas
+  5) Use the real gaussian beam
  
   ### Anlaysis
   1) Plot radial distribution at the fiber as a function of time
