@@ -1,0 +1,13 @@
+=== SIMULATION PARAMETERS ===
+Temperature (T): 10.00 uK
+MOT displacement (dMOT): 12.00 mm
+MOT radius (RMOT): 1.00 mm
+MOT duration (MOT_t): 0.100 s
+NUm. of Atoms in simulation (N): 1.000e+05
+
+--- Constants ---
+w0: 1.900e-05 m
+zR: 1.066e-03 m
+tau: 6.408e-05 s
+m_Rb: 1.445e-25 kg
+kB: 1.381e-23 J/K
