@@ -125,6 +125,48 @@ def density_at_fib(step, T, dMOT):
         print(f'No simualtion was run with T={T}uK and dMOT={dMOT}mm')
         exit()
 
+def z_density(step, T, dMOT):
+    """
+    Compute axial density distribution of atoms at a given step.
+
+    Parameters
+    ----------
+    step : int
+        Time step index (-1 for final distribution).
+    T : float
+        MOT temperature [µK].
+    dMOT : float
+        MOT–fiber distance [mm].
+
+    Returns
+    -------
+    hist_zeta_step : tuple
+        Histogram (counts, bins) for atomic axial positions at given step.
+    hist_rho_init : tuple
+        Histogram (counts, bins) for initial MOT distribution.
+    """
+
+    res_folder = data_folder + f'res_T={T:.0f}uK_dMOT={dMOT:.0f}mm/'
+
+    if os.path.exists(res_folder):
+        try:
+            xs = np.load(res_folder + pos_fname)
+            
+            zeta_step = xs[step, 1, :]
+            zeta_init = xs[0, 1, :]
+
+            hist_zeta_step = np.histogram(zeta_step, int(np.sqrt(len(zeta_step))), density=True)
+            hist_zeta_init = np.histogram(zeta_init, int(np.sqrt(len(zeta_init))), density=True)
+            
+            return hist_zeta_step, hist_zeta_init
+        
+        except Exception as err:
+            print(f"Error: {err=}, {type(err)=}")
+            exit()
+    else:
+        print(f'No simualtion was run with T={T}uK and dMOT={dMOT}mm')
+        exit()
+
 def plot_cap_frac(ts, f_cap, label='Fraction Captured', color='royalblue'):
     """
     Plot fraction of captured atoms vs time.
@@ -201,6 +243,60 @@ def plot_density_at_fib(hist_rho_step, label='Distribution at the fiber', color=
     plt.ylabel('Probability density')
     plt.legend()
 
+def plot_initial_density_zeta(hist_zeta_init):
+    """
+    Plot initial axial distribution of MOT atoms.
+
+    Parameters
+    ----------
+    hist_zeta_init : tuple
+        Histogram of initial ρ distribution (counts, bins).
+    """
+
+    # Bin centers
+    init_bins = hist_zeta_init[1]
+
+    init_widths = np.diff(init_bins)
+
+    plt.bar(
+        init_bins[:-1], hist_zeta_init[0],
+        width=init_widths, align='edge',
+        color='blue', alpha=0.8, label='Initial distribution'
+    )
+
+    plt.title('Initial axial distribution of atomic positions')
+    plt.xlabel(r'$\zeta$ $(z_R)$')
+    plt.ylabel('Probability density')
+    plt.legend()
+
+def plot_density_zeta(hist_zeta_step, label='Distribution of axial positions', color='red'):
+    """
+    Plot axial distribution at the given step.
+
+    Parameters
+    ----------
+    hist_zeta_step : tuple
+        Histogram of ρ for atoms at fiber.
+    label : str
+        Plot label.
+    color : str
+        Bar color.
+    """
+    # Bin centers
+    step_bins = hist_zeta_step[1]
+
+    step_widths = np.diff(step_bins)
+
+    plt.bar(
+        step_bins[:-1], hist_zeta_step[0],
+        width=step_widths, align='edge',
+        color=color, alpha=0.8, label=label
+    )
+
+    plt.title('Distribution of radial position at fiber')
+    plt.xlabel(r'$z$ $(z_R)$')
+    plt.ylabel('Probability density')
+    plt.legend()
 
 if __name__ == '__main__':
 
@@ -222,5 +318,10 @@ if __name__ == '__main__':
     hist_rho_step, hist_rho_init = density_at_fib(step=-1, T=T, dMOT=dMOT)
     plot_initial_density_rho(hist_rho_init)
     plot_density_at_fib(hist_rho_step=hist_rho_step)
+    plt.show()
+
+    hist_zeta_step, hist_zeta_init = z_density(900, T, dMOT)
+    plot_initial_density_zeta(hist_zeta_init)
+    plot_density_zeta(hist_zeta_step)
     plt.show()
 
