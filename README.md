@@ -77,7 +77,7 @@ python simulation.py
 * **Initial velocities**
 
   * Radial:
-    `v_rho_0 ∼ N(0, 1/(2α)) × vs_rho / v_bar`
+    `v_rho_0 ∼ N(0, 1/(2α)) × vs_rho / v_bar` NEEDS CORRECTION
   * Axial:
     `v_zeta_0 ∼ N(0, 1/(2α)) × vs_zeta / v_bar`
   * Combined:
@@ -200,7 +200,7 @@ cd MD_simulation
   ```bash
   git push origin feature-description
   ```
-* Open a **Pull Request (PR)** from your branch into `main`.
+* Open a **Pull Request (PR)** from your branch into `master`.
   In your PR, briefly describe the changes and any new physics or analysis methods added.
 * All code should follow PEP8 style and include **docstrings** for new functions.
 
