@@ -2,7 +2,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-def verlet(x0, v0, a_func, dt, steps):
+from tqdm import trange
+
+def verlet(x0, v0, a_func, dt, steps, progress=True):
     """
     Integrate atomic motion using the velocity-Verlet scheme.
 
@@ -26,6 +28,8 @@ def verlet(x0, v0, a_func, dt, steps):
         Time step (dimensionless units).
     steps : int
         Number of integration steps.
+    progress : bool, optional
+        If True, display a tqdm progress bar (default: True).
 
     Returns
     -------
@@ -55,22 +59,25 @@ def verlet(x0, v0, a_func, dt, steps):
     a0 = a_func(xs[0])
     xs[1] = xs[0] + v0*dt + 0.5*a0*dt**2
 
-    for i in range(1, steps):
+    # Loop with optional progress bar
+    iterator = trange(1, steps, desc="Simulation", disable=not progress, mininterval=1.0)
+    for i in iterator:
         t = (i+1)*dt
         ts[i+1] = t
 
         z = xs[i, 1]
         update = z > 0
+
         # acceleration at current step
         a = a_func(xs[i])
 
         # Verlet position update
-        xs[i+1] = xs[i]  + (xs[i] - xs[i-1] + a*dt**2) * update
+        xs[i+1] = xs[i] + (xs[i] - xs[i-1] + a*dt**2) * update
 
         # Velocity (estimated with central difference)
         vs[i] = (xs[i+1] - xs[i-1]) / (2*dt) * update
 
-    # last velocity estimation
+    # Last velocity estimation
     vs[-1] = (xs[-1] - xs[-2]) / dt * update
 
     return xs, vs, ts
