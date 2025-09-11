@@ -3,6 +3,16 @@ from Verlet import *
 import numpy as np
 import os
 
+# MOT characteristics
+RMOT = 1e-3 # m
+VMOT = 4/3 * np.pi * RMOT**3
+dMOT_max = 20e-3 # m
+h_max = dMOT_max + RMOT
+R_cil = w(h_max)
+V_cil = 2 * np.pi * RMOT * R_cil**2
+
+MOT_t = 0.1 # s
+
 def print_simulation_parameters(
     N, T, dMOT, RMOT, MOT_t, w0, zR, tau,
     m_Rb, kB, rho_max, zeta_min, zeta_max, t_max, dt, N_steps
@@ -18,11 +28,11 @@ def print_simulation_parameters(
     v_bar = np.sqrt(np.pi / alpha)
 
     print("\n=== SIMULATION PARAMETERS ===")
-    print(f"Temperature (T): {T:.2e} K")
-    print(f"Number of atoms (N): {N}")
-    print(f"MOT displacement (dMOT): {dMOT} mm")
-    print(f"MOT radius (RMOT): {RMOT} mm")
-    print(f"MOT duration (MOT_t): {MOT_t} s")
+    print(f"Temperature (T): {T*1e6:.2f} uK")
+    print(f"Number of atoms (N): {N:.2e}")
+    print(f"MOT displacement (dMOT): {dMOT*1e3:.2f} mm")
+    print(f"MOT radius (RMOT): {RMOT*1e3:.2f} mm")
+    print(f"MOT duration (MOT_t): {MOT_t:.2e} s")
 
     print("\n--- Initial positions ---")
     print(f"rho_max: {rho_max:.2e} [w0 units] (r_max = {rho_max * w0:.2e} m)")
@@ -43,7 +53,7 @@ def print_simulation_parameters(
     print("\n==============================\n")
 
 
-def simulation(N=int(1e2), T=15, dMOT=5):
+def simulation(N=int(1e5), T=15, dMOT=5):
     """
     Run a full atom trajectory simulation.
 
@@ -71,15 +81,12 @@ def simulation(N=int(1e2), T=15, dMOT=5):
 
     # SIMULATION PARAMETERS
     N = int(N) # num of atoms
-    
+
     # MOT
     T = T * 1e-6 # K
     dMOT = dMOT * 1e-3 # m
-    RMOT = 1e-3 # m
-    MOT_t = 0.1 # s
 
     # initial positions
-
     z_max = dMOT + RMOT
     z_min = dMOT - RMOT
     zeta_max = z_max / zR
@@ -87,7 +94,7 @@ def simulation(N=int(1e2), T=15, dMOT=5):
 
     zeta_0 = np.random.uniform(zeta_min, zeta_max, size=N)
 
-    rho_max = 0.25 * zeta_max # in units of w0
+    rho_max = h_max / zR # in units of w0
     rho_0 = np.random.uniform(-rho_max, rho_max, size=N)
 
     x0 = np.array([rho_0, zeta_0])
@@ -118,11 +125,11 @@ def simulation(N=int(1e2), T=15, dMOT=5):
         )
 
     res = verlet(x0, v0, acc, dt, N_steps)
-    save_data(res, T, dMOT)
+    save_data(res, T, dMOT, N)
 
-def save_data(res, T, dMOT):
+def save_data(res, T, dMOT, N):
     """
-    Save raw simulation results to disk.
+    Save raw simulation results and main parameters to disk.
 
     Parameters
     ----------
@@ -132,21 +139,51 @@ def save_data(res, T, dMOT):
         Temperature [K].
     dMOT : float
         MOT–fiber distance [m].
+    N : float
+        Number of atoms inside the cylindrical volume.
 
     Notes
     -----
-    - Creates result folder if not existing.
-    - Saves positions, velocities, times as `.npy` arrays.
+    - Results are saved in a folder named
+      `res_T={T}uK_dMOT={dMOT}mm/` inside `data_folder/`.
+    - Arrays saved:
+        * positions.npy : atom trajectories
+        * velocities.npy : atom velocities
+        * times.npy : time steps
+    - Parameters saved:
+        * parameters.txt : human-readable file containing
+          the main simulation parameters and constants.
     """
 
     res_folder = data_folder + f'res_T={T*1e6:.0f}uK_dMOT={dMOT*1e3:.0f}mm/'
 
-    if os.path.exists(res_folder) - 1 :
+    if not os.path.exists(res_folder):
         os.mkdir(res_folder)
 
+    # Save arrays
     np.save(res_folder + pos_fname, res[0])
     np.save(res_folder + vel_fname, res[1])
     np.save(res_folder + time_fname, res[2])
+
+    # Save parameters in a human-readable text file
+    param_file = res_folder + "parameters.txt"
+    with open(param_file, "w") as f:
+        f.write("=== SIMULATION PARAMETERS ===\n")
+        f.write(f"Temperature (T): {T*1e6:.2f} uK\n")
+        f.write(f"MOT displacement (dMOT): {dMOT*1e3:.2f} mm\n")
+        f.write(f"MOT radius (RMOT): {RMOT*1e3:.2f} mm\n")
+        f.write(f"MOT duration (MOT_t): {MOT_t:.3f} s\n")
+        f.write(f"NUm. of Atoms in simulation (N): {N:.3e}\n\n")
+
+        f.write("--- Constants ---\n")
+        f.write(f"w0: {w0:.3e} m\n")
+        f.write(f"zR: {zR:.3e} m\n")
+        f.write(f"tau: {tau:.3e} s\n")
+        f.write(f"m_Rb: {m_Rb:.3e} kg\n")
+        f.write(f"kB: {kB:.3e} J/K\n")
+
+    print(f"Parameters saved in {param_file}")
+
 
 if __name__ == '__main__':
     from sys import argv

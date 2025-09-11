@@ -81,6 +81,23 @@ phi = k * I0 / (m_Rb * w0**2)
 tau = 1 / np.sqrt(phi)          # time scale ( 1 / sqrt(phi) is a time )
 acc_sc = lambda_b / np.pi * phi
 
+def w(z: float):
+    """
+    Gaussian beam radius.
+
+    Parameters
+    ----------
+    z : float
+        Axial coordinate.
+
+    Returns
+    -------
+    beta : float
+        Gaussian beam radius at z:
+            w(z) = w0 * np.sqrt(1 + (z/zR)**2).
+    """
+    return w0 * np.sqrt(1 + (z/zR)**2)
+
 def beta(zeta: np.ndarray):
     """
     Dimensionless beam divergence factor.
