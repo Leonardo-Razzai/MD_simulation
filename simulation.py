@@ -105,8 +105,8 @@ def simulation(N=int(1e5), T=15, dMOT=5):
     alpha = m_Rb / (2 * kB * T)
     v_bar = np.sqrt(np.pi / alpha)
 
-    v_rho_0 = np.random.normal(loc = 0, scale = 1 / (2*alpha), size = N) * vs_rho / v_bar
-    v_zeta_0 = np.random.normal(loc = 0, scale = 1 / (2*alpha), size = N) * vs_zeta / v_bar 
+    v_rho_0 = np.random.normal(loc = 0, scale = np.sqrt(1 / (2*alpha)), size = N) * vs_rho / v_bar
+    v_zeta_0 = np.random.normal(loc = 0, scale = np.sqrt(1 / (2*alpha)), size = N) * vs_zeta / v_bar 
 
     v0 = np.array([v_rho_0, v_zeta_0])
 
