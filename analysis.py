@@ -1,6 +1,32 @@
 from Dynamics import *
+from simulation import VMOT, V_cil
 import matplotlib.pyplot as plt
 import os
+
+def compute_NMOT(N):
+    """
+    Compute the effective number of atoms in the cylindrical fiber volume.
+
+    Parameters
+    ----------
+    N : int
+        Total number of atoms in the MOT.
+
+    Returns
+    -------
+    NMOT : float
+        Effective number of atoms inside the cylindrical fiber volume.
+
+    Notes
+    -----
+    - Uses global constants:
+        * VMOT : volume of the MOT sphere
+        * V_cil : effective cylindrical fiber volume
+    - Formula:
+        NMOT = N * VMOT / V_cil
+    """
+    return N * VMOT / V_cil
+
 
 def capt_atoms_vs_t(T, dMOT):
     """
@@ -37,7 +63,10 @@ def capt_atoms_vs_t(T, dMOT):
             r_cap = R_trap / w0 # trap radius in units of w0
             n_cap = np.sum((xs[:, 1, :] <= 0) & (np.abs(xs[:, 0, :]) < r_cap), axis=1)
 
-            return ts, n_cap / len(xs[0, 0, :])
+            N = len(xs[0, 0, :])
+            NMOT = N * VMOT / V_cil
+
+            return ts, n_cap / NMOT
         
         except Exception as err:
             print(f"Error: {err=}, {type(err)=}")
