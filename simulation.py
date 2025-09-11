@@ -111,8 +111,8 @@ def simulation(N=int(1e5), T=15, dMOT=5):
     v0 = np.array([v_rho_0, v_zeta_0])
 
     # Time and Num
-    t_max = MOT_t / tau / 100
-    dt = t_max / 1e3
+    t_max = MOT_t / tau / 30
+    dt = t_max / 0.5e3
     N_steps = int(t_max / dt)
 
     # Call this after defining constants in your script

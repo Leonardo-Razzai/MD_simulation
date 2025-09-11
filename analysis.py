@@ -116,7 +116,7 @@ def density_at_fib(step, T, dMOT):
 
                 return hist_rho_step, hist_rho_init
             else:
-                return np.array([0]), np.array([0])
+                return None, None
             
         except Exception as err:
             print(f"Error: {err=}, {type(err)=}")
@@ -228,15 +228,18 @@ def plot_density_at_fib(hist_rho_step, label='Distribution at the fiber', color=
         Bar color.
     """
     # Bin centers
-    step_bins = hist_rho_step[1]
+    if hist_rho_step:
+        step_bins = hist_rho_step[1]
 
-    step_widths = np.diff(step_bins)
+        step_widths = np.diff(step_bins)
 
-    plt.bar(
-        step_bins[:-1], hist_rho_step[0],
-        width=step_widths, align='edge',
-        color=color, alpha=0.8, label=label
-    )
+        plt.bar(
+            step_bins[:-1], hist_rho_step[0],
+            width=step_widths, align='edge',
+            color=color, alpha=0.8, label=label
+        )
+    else:
+        plt.plot([],[])
 
     plt.title('Distribution of radial position at fiber')
     plt.xlabel(r'$\rho$ $(w_0)$')
@@ -298,6 +301,55 @@ def plot_density_zeta(hist_zeta_step, label='Distribution of axial positions', c
     plt.ylabel('Probability density')
     plt.legend()
 
+def plot_density_zeta_vs_t(steps: list, T, dMOT):
+
+    """
+    Plot axial distribution at given steps.
+
+    Parameters
+    ----------
+    steps : list
+        Steps at which computing the distributions.
+    T : float
+        MOT temperature [µK].
+    dMOT : float
+        MOT–fiber distance [mm].
+    """
+
+    from matplotlib import colormaps
+    cmap = colormaps.get_cmap('inferno')
+    colors = [cmap(x) for x in np.linspace(0.1, 0.8, len(steps))]
+
+    for i, step in enumerate(steps):
+        hist_zeta_step, _ = z_density(step, T, dMOT)
+        plot_density_zeta(hist_zeta_step, label=f'step = {step}', color=colors[i])
+
+    plt.title('Axial position distribution at different times')
+
+def plot_density_rho_vs_t(steps: list, T, dMOT):
+    """
+    Plot axial distribution at given steps.
+
+    Parameters
+    ----------
+    steps : list
+        Steps at which computing the distributions.
+    T : float
+        MOT temperature [µK].
+    dMOT : float
+        MOT–fiber distance [mm].
+    """
+
+    from matplotlib import colormaps
+    cmap = colormaps.get_cmap('inferno')
+    colors = [cmap(x) for x in np.linspace(0.1, 0.8, len(steps))]
+
+    for i, step in enumerate(steps):
+        hist_rho_step, _ = density_at_fib(step, T, dMOT)
+        plot_density_at_fib(hist_rho_step, label=f'step = {step}', color=colors[i])
+
+    plt.title('Distribution of atoms at fiber at different times')
+    
 if __name__ == '__main__':
 
     from sys import argv
@@ -325,3 +377,8 @@ if __name__ == '__main__':
     plot_density_zeta(hist_zeta_step)
     plt.show()
 
+    plot_density_zeta_vs_t([0, 100, 200, 300, 500], T, dMOT)
+    plt.show()
+
+    plot_density_rho_vs_t([0, 200, 400, 600, 800, 1000], T, dMOT)
+    plt.show()
