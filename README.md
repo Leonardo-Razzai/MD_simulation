@@ -203,3 +203,14 @@ cd MD_simulation
 * Open a **Pull Request (PR)** from your branch into `main`.
   In your PR, briefly describe the changes and any new physics or analysis methods added.
 * All code should follow PEP8 style and include **docstrings** for new functions.
+
+  ## To Do
+  ### Simulation wise:
+  1) Add heating due to temperature
+  2) Extend to the atoms in the fiber to estimate their lifeltime in the fiber
+  3) Add effect of collisions with background gas
+  4) Use the real gaussian beam
+ 
+  ### Anlaysis
+  1) Plot radial distribution at the fiber as a function of time
+  2) Extract velocity distribution
