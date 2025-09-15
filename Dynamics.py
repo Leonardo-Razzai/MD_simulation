@@ -30,6 +30,8 @@ def print_physical_constants(
     print(f"Beam waist (w0): {w0:.2e} m (length scale along radial coordinate)")
     print(f"Rayleigh length (zR): {zR:.2e} m (length scale along axial coordinate)")
     print(f"Intensity scale (I0): {I0:.2e} W/m²")
+    print(f"Radial velocity scale (vs_rho): {vs_rho:.2e} m/s")
+    print(f"Axial velocity scale (vs_zeta): {vs_zeta:.2e} m/s")
 
     print("\n=== RUBIDIUM CONSTANTS ===")
     print(f"Rb-87 mass (m_Rb): {m_Rb:.2e} kg")
@@ -79,6 +81,8 @@ I0 = 2 * P_b / (np.pi * w0**2)     # intensity scale
 
 phi = k * I0 / (m_Rb * w0**2)
 tau = 1 / np.sqrt(phi)          # time scale ( 1 / sqrt(phi) is a time )
+vs_rho = w0 / tau               # radial velocity scale
+vs_zeta = zR / tau              # axial velocity scale
 acc_sc = lambda_b / np.pi * phi
 
 def w(z: float):
