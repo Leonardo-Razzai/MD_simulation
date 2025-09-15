@@ -295,7 +295,7 @@ def plot_density_zeta(hist_zeta_step, label='Distribution of axial positions', c
         width=step_widths, align='edge',
         color=color, alpha=0.8, label=label
     )
-
+    plt.ylim(0, 1)
     plt.title('Distribution of radial position at fiber')
     plt.xlabel(r'$z$ $(z_R)$')
     plt.ylabel('Probability density')
@@ -372,13 +372,5 @@ if __name__ == '__main__':
     plot_density_at_fib(hist_rho_step=hist_rho_step)
     plt.show()
 
-    hist_zeta_step, hist_zeta_init = z_density(900, T, dMOT)
-    plot_initial_density_zeta(hist_zeta_init)
-    plot_density_zeta(hist_zeta_step)
-    plt.show()
-
     plot_density_zeta_vs_t([0, 100, 200, 300, 500], T, dMOT)
-    plt.show()
-
-    plot_density_rho_vs_t([1000, 800, 600, 400, 200], T, dMOT)
     plt.show()
