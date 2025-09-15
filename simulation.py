@@ -100,18 +100,16 @@ def simulation(N=int(1e5), T=15, dMOT=5):
     x0 = np.array([rho_0, zeta_0])
 
     # initial velocities
-    vs_rho = w0 / tau
-    vs_zeta = zR / tau
     alpha = m_Rb / (2 * kB * T)
-    v_bar = np.sqrt(np.pi / alpha)
-
-    v_rho_0 = np.random.normal(loc = 0, scale = np.sqrt(1 / (2*alpha)), size = N) * vs_rho / v_bar
-    v_zeta_0 = np.random.normal(loc = 0, scale = np.sqrt(1 / (2*alpha)), size = N) * vs_zeta / v_bar 
+    sigma_rho = np.sqrt(1 / (2*alpha)) / vs_rho
+    sigma_zeta = np.sqrt(1 / (2*alpha)) / vs_zeta
+    v_rho_0 = np.random.normal(loc = 0, scale = sigma_rho, size = N)
+    v_zeta_0 = np.random.normal(loc = 0, scale = sigma_zeta, size = N)
 
     v0 = np.array([v_rho_0, v_zeta_0])
 
     # Time and Num
-    t_max = MOT_t / tau / 30
+    t_max = MOT_t / tau / 60
     dt = t_max / 1e3
     N_steps = int(t_max / dt)
 
@@ -161,9 +159,11 @@ def save_data(res, T, dMOT, N):
         os.mkdir(res_folder)
 
     # Save arrays
-    np.save(res_folder + pos_fname, res[0])
-    np.save(res_folder + vel_fname, res[1])
-    np.save(res_folder + time_fname, res[2])
+    iterator = trange(1, 3, desc="Saving", mininterval=1.0)
+
+    f_names = [pos_fname, vel_fname, time_fname]
+    for i in iterator:
+        np.save(res_folder + f_names[i-1], res[i-1])
 
     # Save parameters in a human-readable text file
     param_file = res_folder + "parameters.txt"
