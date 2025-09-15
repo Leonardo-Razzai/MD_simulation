@@ -140,7 +140,7 @@ def verlet_up_to(x0, v0, a_func, dt, steps, z_min=5):
     while z > z_min:
         xstep = xs[i]
         z = np.min(xstep[1])
-        print('z=', z)
+
         # acceleration at current step
         a = a_func(xs[i])
 
