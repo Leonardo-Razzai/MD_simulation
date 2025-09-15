@@ -109,7 +109,7 @@ def simulation(N=int(1e5), T=15, dMOT=5):
     v0 = np.array([v_rho_0, v_zeta_0])
 
     # Time and Num
-    t_max = MOT_t / tau / 60
+    t_max = MOT_t / tau / 120
     dt = t_max / 1e3
     N_steps = int(t_max / dt)
 
@@ -122,8 +122,13 @@ def simulation(N=int(1e5), T=15, dMOT=5):
             t_max=t_max, dt=dt, N_steps=N_steps
         )
 
-    res = verlet(x0, v0, acc, dt, N_steps)
+    xres, vres = evolve_up_to(x0, v0, acc, dt, N_steps, z_min=10)
+    res = verlet(xres, vres, acc, dt, N_steps)
     save_data(res, T, dMOT, N)
+
+def evolve_up_to(x0, v0, acc, dt, N_steps, z_min=5):
+    res = verlet_up_to(x0, v0, acc, dt, N_steps, z_min=z_min)
+    return res
 
 def save_data(res, T, dMOT, N):
     """
@@ -173,7 +178,7 @@ def save_data(res, T, dMOT, N):
         f.write(f"MOT displacement (dMOT): {dMOT*1e3:.2f} mm\n")
         f.write(f"MOT radius (RMOT): {RMOT*1e3:.2f} mm\n")
         f.write(f"MOT duration (MOT_t): {MOT_t:.3f} s\n")
-        f.write(f"NUm. of Atoms in simulation (N): {N:.3e}\n\n")
+        f.write(f"Num. of Atoms in simulation (N): {N:.3e}\n\n")
 
         f.write("--- Constants ---\n")
         f.write(f"w0: {w0:.3e} m\n")
