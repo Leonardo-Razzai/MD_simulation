@@ -380,5 +380,5 @@ if __name__ == '__main__':
     plot_density_zeta_vs_t([0, 100, 200, 300, 500], T, dMOT)
     plt.show()
 
-    plot_density_rho_vs_t([0, 200, 400, 600, 800, 1000], T, dMOT)
+    plot_density_rho_vs_t([1000, 800, 600, 400, 200], T, dMOT)
     plt.show()
