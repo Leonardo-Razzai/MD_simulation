@@ -1,6 +1,6 @@
 from simulation import *
 
-T_range = np.arange(start=5, stop=35, step=5) # uK
+T_range = np.arange(start=10, stop=130, step=20) # uK
 dMOT_range = np.arange(start=4, stop=24, step=4) # mm
 
 for T in T_range:
