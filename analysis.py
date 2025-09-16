@@ -75,6 +75,11 @@ def capt_atoms_vs_t(T, dMOT):
         print(f'No simualtion was run with T={T}uK and dMOT={dMOT}mm')
         exit()
 
+def get_last_conc(T, dMOT):
+    _, conc = capt_atoms_vs_t(T, dMOT)
+    last_conc = conc[-1]
+    return last_conc
+
 def density_at_fib(step, T, dMOT):
     """
     Compute radial density distribution of atoms at the fiber.
@@ -349,7 +354,8 @@ def plot_density_rho_vs_t(steps: list, T, dMOT):
         plot_density_at_fib(hist_rho_step, label=f'step = {step}', color=colors[i])
 
     plt.title('Distribution of atoms at fiber at different times')
-    
+
+
 if __name__ == '__main__':
 
     from sys import argv
@@ -374,3 +380,5 @@ if __name__ == '__main__':
 
     plot_density_zeta_vs_t([0, 100, 200, 300, 500], T, dMOT)
     plt.show()
+
+    print('Percentage of atoms at the fiber: ', get_last_conc(T, dMOT))
