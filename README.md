@@ -210,6 +210,8 @@ cd MD_simulation
   2) Extend to the atoms in the fiber to estimate their lifeltime in the fiber
   3) Add effect of collisions with background gas
   4) Use the real gaussian beam
+  5) Use different waists / fibers
+  6) Use blue trap
  
   ### Anlaysis
   1) Extract velocity distribution
