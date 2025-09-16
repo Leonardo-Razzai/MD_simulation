@@ -164,11 +164,11 @@ def save_data(res, T, dMOT, N):
         os.mkdir(res_folder)
 
     # Save arrays
-    iterator = trange(1, 3, desc="Saving", mininterval=1.0)
+    iterator = trange(0, 3, desc="Saving", mininterval=1.0)
 
     f_names = [pos_fname, vel_fname, time_fname]
     for i in iterator:
-        np.save(res_folder + f_names[i-1], res[i-1])
+        np.save(res_folder + f_names[i], res[i])
 
     # Save parameters in a human-readable text file
     param_file = res_folder + "parameters.txt"
