@@ -76,9 +76,31 @@ def capt_atoms_vs_t(T, dMOT):
         exit()
 
 def get_last_conc(T, dMOT):
+    """
+    Compute the final fraction of atoms captured at the fiber.
+
+    Parameters
+    ----------
+    T : float
+        MOT temperature [µK].
+    dMOT : float
+        MOT–fiber distance [mm].
+
+    Returns
+    -------
+    last_conc : float
+        Fraction of atoms captured at the final simulation step.
+
+    Notes
+    -----
+    - Uses `capt_atoms_vs_t` to compute the time evolution of the captured fraction.
+    - Returns the last value of the capture fraction array.
+    - The result is normalized by the effective number of atoms inside the fiber volume.
+    """
     _, conc = capt_atoms_vs_t(T, dMOT)
     last_conc = conc[-1]
     return last_conc
+
 
 def density_at_fib(step, T, dMOT):
     """
