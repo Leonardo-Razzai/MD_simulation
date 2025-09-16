@@ -20,7 +20,7 @@ img_folder = './img/'
 os.makedirs(img_folder, exist_ok=True)
 
 # Parameter ranges
-T_range = np.arange(start=5, stop=35, step=5)   # MOT temperature in μK
+T_range = np.arange(start=10, stop=130, step=20)   # MOT temperature in μK
 dMOT_range = np.arange(start=4, stop=24, step=4) # MOT displacement in mm
 
 # --- 1. Capture fraction vs. time at fixed dMOT, varying T ---
