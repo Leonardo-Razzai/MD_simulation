@@ -1,5 +1,5 @@
 from Dynamics import *
-from simulation import VMOT, V_cil
+from simulation import VMOT, V_cil, RMOT
 import matplotlib.pyplot as plt
 import os
 
@@ -169,7 +169,7 @@ def z_density(step, T, dMOT):
     -------
     hist_zeta_step : tuple
         Histogram (counts, bins) for atomic axial positions at given step.
-    hist_rho_init : tuple
+    hist_zeta_init : tuple
         Histogram (counts, bins) for initial MOT distribution.
     """
 
@@ -193,6 +193,38 @@ def z_density(step, T, dMOT):
     else:
         print(f'No simualtion was run with T={T}uK and dMOT={dMOT}mm')
         exit()
+
+def density(T, dMOT, rho_min: float, rho_max: float, 
+            zeta_min: float, zeta_max: float, step=-1):
+
+    res_folder = data_folder + f'res_T={T:.0f}uK_dMOT={dMOT:.0f}mm/'
+
+    if os.path.exists(res_folder):
+        try:
+            xs = np.load(res_folder + pos_fname)
+            rho_atoms = xs[step, 0, :]
+            zeta_atoms = xs[step, 1, :]
+        except Exception as err:
+            print(f"Error: {err=}, {type(err)=}")
+            exit()
+    else:
+        print(f'No simulation was run with T={T}uK and dMOT={dMOT}mm')
+        exit()
+
+    # Define bin edges
+    rho_array = np.linspace(rho_min, rho_max, 501)  # 100 bins
+    zeta_array = np.linspace(zeta_min, zeta_max, 501)
+
+    # Compute 2D histogram (counts in each bin)
+    n, rho_edges, zeta_edges = np.histogram2d(
+        rho_atoms, zeta_atoms, bins=[rho_array, zeta_array]
+    )
+
+    # For plotting, use bin centers instead of edges
+    rho_centers = 0.5 * (rho_edges[:-1] + rho_edges[1:])
+    zeta_centers = 0.5 * (zeta_edges[:-1] + zeta_edges[1:])
+
+    return n.T, rho_centers, zeta_centers
 
 def plot_cap_frac(ts, f_cap, label='Fraction Captured', color='royalblue'):
     """
@@ -377,7 +409,27 @@ def plot_density_rho_vs_t(steps: list, T, dMOT):
 
     plt.title('Distribution of atoms at fiber at different times')
 
+def plot_density(n, rho_array, zeta_array):
+    
+    # Make 2D grid for plotting
+    R, Z = np.meshgrid(rho_array * w0 * 1e3, zeta_array * zR * 1e3)
 
+    plt.figure(figsize=(8, 6))
+
+    # Filled contour plot
+    cp = plt.contourf(R, Z, n, levels=50, cmap="viridis")  # note the .T
+
+    # Add colorbar
+    plt.colorbar(cp, label="Density")
+
+    plt.xlabel("r (mm)")
+    plt.ylabel("z (mm)")
+    plt.title("Density contour plot")
+    plt.show()
+
+
+
+plt.show()
 if __name__ == '__main__':
 
     from sys import argv
@@ -391,16 +443,20 @@ if __name__ == '__main__':
 
     print(f'T = {T} uK, dMOT = {dMOT} mm')
 
-    ts, f_cap = capt_atoms_vs_t(T, dMOT)
-    plot_cap_frac(ts, f_cap)
-    plt.show()
+    # ts, f_cap = capt_atoms_vs_t(T, dMOT)
+    # plot_cap_frac(ts, f_cap)
+    # plt.show()
 
-    hist_rho_step, hist_rho_init = density_at_fib(step=-1, T=T, dMOT=dMOT)
-    plot_initial_density_rho(hist_rho_init)
-    plot_density_at_fib(hist_rho_step=hist_rho_step)
-    plt.show()
+    # hist_rho_step, hist_rho_init = density_at_fib(step=-1, T=T, dMOT=dMOT)
+    # plot_initial_density_rho(hist_rho_init)
+    # plot_density_at_fib(hist_rho_step=hist_rho_step)
+    # plt.show()
 
-    plot_density_zeta_vs_t([0, 100, 200, 300, 500], T, dMOT)
-    plt.show()
+    # plot_density_zeta_vs_t([0, 100, 200, 300, 500], T, dMOT)
+    # plt.show()
 
     print('Percentage of atoms at the fiber: ', get_last_conc(T, dMOT))
+
+    n, rho_array, zeta_array = density(T, dMOT, rho_min=-2.5*RMOT/w0, rho_max=2.5*RMOT/w0, zeta_min=0, zeta_max=5, step=750)
+    plot_density(n, rho_array, zeta_array)
+    plt.show()
