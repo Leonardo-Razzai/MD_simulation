@@ -64,7 +64,7 @@ def capt_atoms_vs_t(T, dMOT):
             n_cap = np.sum((xs[:, 1, :] <= 0) & (np.abs(xs[:, 0, :]) < r_cap), axis=1)
 
             N = len(xs[0, 0, :])
-            NMOT = N * VMOT / V_cil
+            NMOT = compute_NMOT(N)
 
             return ts, n_cap / NMOT
         
