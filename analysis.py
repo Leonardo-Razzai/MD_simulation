@@ -197,6 +197,43 @@ def z_density(step, T, dMOT):
 def density(T, dMOT, rho_min: float, rho_max: float, 
             zeta_min: float, zeta_max: float, step=-1):
 
+
+    """
+    Compute the 2D spatial density histogram of atoms from simulation data.
+
+    Parameters
+    ----------
+    T : float
+        Temperature of the simulation in microkelvin (uK).
+    dMOT : float
+        MOT displacement in millimeters (mm).
+    rho_min : float
+        Minimum value of the radial coordinate (rho) for the histogram.
+    rho_max : float
+        Maximum value of the radial coordinate (rho) for the histogram.
+    zeta_min : float
+        Minimum value of the axial coordinate (zeta) for the histogram.
+    zeta_max : float
+        Maximum value of the axial coordinate (zeta) for the histogram.
+    step : int, optional
+        Time step index to use from the simulation data (default is -1, the last step).
+
+    Returns
+    -------
+    n : ndarray
+        2D array of histogram counts for each (rho, zeta) bin. Shape is (len(zeta_centers), len(rho_centers)).
+    rho_centers : ndarray
+        1D array of bin center positions along the rho axis.
+    zeta_centers : ndarray
+        1D array of bin center positions along the zeta axis.
+
+    Notes
+    -----
+    The function expects simulation results to be saved in a folder
+    with the naming convention: 'res_T={T}uK_dMOT={dMOT}mm/'.
+    If the folder or file does not exist, the function exits.
+    """
+
     res_folder = data_folder + f'res_T={T:.0f}uK_dMOT={dMOT:.0f}mm/'
 
     if os.path.exists(res_folder):
@@ -410,6 +447,30 @@ def plot_density_rho_vs_t(steps: list, T, dMOT):
     plt.title('Distribution of atoms at fiber at different times')
 
 def plot_density(n, rho_array, zeta_array):
+    
+    """
+    Plot a 2D density contour of atomic distribution.
+
+    Parameters
+    ----------
+    n : ndarray
+        2D array of histogram counts (output of `density` function).
+    rho_array : ndarray
+        1D array of radial bin centers.
+    zeta_array : ndarray
+        1D array of axial bin centers.
+
+    Returns
+    -------
+    None
+        The function displays a contour plot of the density using matplotlib.
+
+    Notes
+    -----
+    The radial (r) and axial (z) coordinates are converted to millimeters
+    using `w0` and `zR` respectively. The density is plotted using a
+    filled contour plot with 50 levels and a 'viridis' colormap.
+    """
     
     # Make 2D grid for plotting
     R, Z = np.meshgrid(rho_array * w0 * 1e3, zeta_array * zR * 1e3)
