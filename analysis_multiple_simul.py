@@ -53,7 +53,7 @@ def plot_3d_TdMOTconc():
     ax.set_zlabel("Captured atoms (%)")
     ax.set_title("Atom Capture Efficiency vs T and dMOT")
 
-    fig.colorbar(surf, shrink=0.5, aspect=10, label="Captured atoms (%)")
+    #fig.colorbar(surf, shrink=0.5, aspect=10, label="Captured atoms (%)")
     plt.savefig(img_folder + f'conc_vs_T-dMOT.jpg')
     plt.clf()
 
