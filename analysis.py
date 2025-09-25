@@ -2,7 +2,7 @@ from Dynamics import *
 from simulation import VMOT, V_cil, RMOT
 import matplotlib.pyplot as plt
 import os
-
+from Beams import GaussianBeam, LGBeamL1
 def compute_NMOT(N):
     """
     Compute the effective number of atoms in the cylindrical fiber volume.
@@ -446,7 +446,7 @@ def plot_density_rho_vs_t(steps: list, T, dMOT):
 
     plt.title('Distribution of atoms at fiber at different times')
 
-def plot_density(n, rho_array, zeta_array):
+def plot_density(n, rho_array, zeta_array, beam=GaussianBeam()):
     
     """
     Plot a 2D density contour of atomic distribution.
@@ -473,7 +473,7 @@ def plot_density(n, rho_array, zeta_array):
     """
     
     # Make 2D grid for plotting
-    R, Z = np.meshgrid(rho_array * w0 * 1e3, zeta_array * zR * 1e3)
+    R, Z = np.meshgrid(rho_array * w0 * 1e3, zeta_array * beam.zR * 1e3)
 
     plt.figure(figsize=(8, 6))
 
@@ -504,20 +504,21 @@ if __name__ == '__main__':
 
     print(f'T = {T} uK, dMOT = {dMOT} mm')
 
-    # ts, f_cap = capt_atoms_vs_t(T, dMOT)
-    # plot_cap_frac(ts, f_cap)
-    # plt.show()
+    ts, f_cap = capt_atoms_vs_t(T, dMOT)
+    plot_cap_frac(ts, f_cap)
+    plt.show()
 
-    # hist_rho_step, hist_rho_init = density_at_fib(step=-1, T=T, dMOT=dMOT)
-    # plot_initial_density_rho(hist_rho_init)
-    # plot_density_at_fib(hist_rho_step=hist_rho_step)
-    # plt.show()
+    hist_rho_step, hist_rho_init = density_at_fib(step=-1, T=T, dMOT=dMOT)
+    plot_initial_density_rho(hist_rho_init)
+    plot_density_at_fib(hist_rho_step=hist_rho_step)
+    plt.show()
 
-    # plot_density_zeta_vs_t([0, 100, 200, 300, 500], T, dMOT)
-    # plt.show()
+    plot_density_zeta_vs_t([0, 100, 200, 300, 500], T, dMOT)
+    plt.show()
 
-    print('Percentage of atoms at the fiber: ', get_last_conc(T, dMOT))
+    print(f'Percentage of atoms at the fiber: {get_last_conc(T, dMOT)*100:.2f} %')
 
-    n, rho_array, zeta_array = density(T, dMOT, rho_min=-2.5*RMOT/w0, rho_max=2.5*RMOT/w0, zeta_min=0, zeta_max=5, step=750)
-    plot_density(n, rho_array, zeta_array)
+    beam=LGBeamL1()
+    n, rho_array, zeta_array = density(T, dMOT, rho_min=-2.5*RMOT/w0, rho_max=2.5*RMOT/w0, zeta_min=0, zeta_max=5, step=400)
+    plot_density(n, rho_array, zeta_array, beam=beam)
     plt.show()

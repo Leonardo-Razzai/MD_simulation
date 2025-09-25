@@ -2,13 +2,14 @@ from Dynamics import *
 from Verlet import *
 import numpy as np
 import os
+from Beams import GaussianBeam, LGBeamL1
 
 # MOT characteristics
 RMOT = 1e-3 # m
 VMOT = 4/3 * np.pi * RMOT**3
 dMOT_max = 20e-3 # m
 h_max = dMOT_max + RMOT
-R_cil = w(h_max)
+R_cil = 4e-4
 V_cil = 2 * np.pi * RMOT * R_cil**2
 
 MOT_t = 0.1 # s
@@ -53,7 +54,7 @@ def print_simulation_parameters(
     print("\n==============================\n")
 
 
-def simulation(N=int(1e5), T=15, dMOT=5):
+def simulation(N=int(1e5), T=15, dMOT=5, beam=GaussianBeam()):
     """
     Run a full atom trajectory simulation.
 
@@ -85,6 +86,11 @@ def simulation(N=int(1e5), T=15, dMOT=5):
     # MOT
     T = T * 1e-6 # K
     dMOT = dMOT * 1e-3 # m
+
+    zR = beam.zR
+    vs_rho = beam.vs_rho
+    vs_zeta = beam.vs_zeta
+    tau = beam.tau
 
     # initial positions
     z_max = dMOT + RMOT
@@ -122,15 +128,15 @@ def simulation(N=int(1e5), T=15, dMOT=5):
             t_max=t_max, dt=dt, N_steps=N_steps
         )
 
-    xres, vres = evolve_up_to(x0, v0, acc, dt, N_steps, z_min=10)
-    res = verlet(xres, vres, acc, dt, N_steps)
-    save_data(res, T, dMOT, N)
+    xres, vres = evolve_up_to(x0, v0, beam.acc, dt, N_steps, z_min=10)
+    res = verlet(xres, vres, beam.acc, dt, N_steps)
+    save_data(res, T, dMOT, N, zR, tau)
 
 def evolve_up_to(x0, v0, acc, dt, N_steps, z_min=5):
     res = verlet_up_to(x0, v0, acc, dt, N_steps, z_min=z_min)
     return res
 
-def save_data(res, T, dMOT, N):
+def save_data(res, T, dMOT, N, zR, tau):
     """
     Save raw simulation results and main parameters to disk.
 
@@ -200,4 +206,5 @@ if __name__ == '__main__':
     T = int(argv[1])
     dMOT = int(argv[2])
 
-    simulation(N=int(1e5), T=T, dMOT=dMOT)
+    beam = LGBeamL1()
+    simulation(N=int(1e5), T=T, dMOT=dMOT, beam=beam)
