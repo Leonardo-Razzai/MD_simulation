@@ -1,5 +1,6 @@
 import numpy as np
 from Dynamics import *
+import matplotlib.pyplot as plt
 
 class GaussianBeam:
     """
@@ -19,6 +20,10 @@ class GaussianBeam:
 
     def beta(self, zeta):
         return 1 / (1 + zeta**2)
+    
+    def intensity(self, rho, zeta):
+        b = self.beta(zeta)
+        return b**2 * np.exp(-2 * b * rho**2)
 
     def du_drho(self, rho, zeta):
         b = self.beta(zeta)
@@ -34,7 +39,35 @@ class GaussianBeam:
         acc_rho = self.du_drho(rho, zeta)
         acc_zeta = self.du_dzeta(rho, zeta) - g/self.acc_sc
         return np.array([acc_rho, acc_zeta])
+    
+    def plot_trans_intensity(self):
+        x = np.linspace(-2, 2, 100)
+        y = np.linspace(-2, 2, 100)
+        x, y = np.meshgrid(x, y)
 
+        # Filled contour plot
+        rho = np.sqrt(x**2 + y**2)
+        cp = plt.contourf(x, y, self.intensity(rho, 0), levels=100, cmap="viridis")  # note the .T
+        # Add colorbar
+        plt.colorbar(cp, label="Norm. Intensity")
+
+        plt.xlabel(r"x ($w_0$)")
+        plt.ylabel(r"y ($w_0$)")
+        plt.title("Intensity contour plot Gaussian Beam")
+
+    def plot_long_intensity(self, x=np.linspace(-2, 2, 100), z=np.linspace(0, 4, 100)):
+        
+        x, z = np.meshgrid(x, z)
+
+        # Filled contour plot
+        rho = np.abs(x)
+        cp = plt.contourf(x, z, self.intensity(rho, z), levels=100, cmap="inferno", alpha=0.2)  # note the .T
+        # Add colorbar
+        plt.colorbar(cp, label="Norm. Intensity")
+
+        plt.xlabel(r"x ($w_0$)")
+        plt.ylabel(r"y ($w_0$)")
+        plt.title("Long. Intensity contour plot Gaussian Beam")
 
 class LGBeamL1:
     """
@@ -90,3 +123,46 @@ class LGBeamL1:
         acc_rho = self.du_drho(rho, zeta)
         acc_zeta = self.du_dzeta(rho, zeta) - g/self.acc_sc
         return np.array([acc_rho, acc_zeta])
+    
+    def plot_trans_intensity(self, x=np.linspace(-2, 2, 100), y=np.linspace(-2, 2, 100)):
+        
+        x, y = np.meshgrid(x, y)
+
+        # Filled contour plot
+        rho = np.sqrt(x**2 + y**2)
+        cp = plt.contourf(x, y, self.intensity(rho, 0), levels=100, cmap="viridis")  # note the .T
+        # Add colorbar
+        plt.colorbar(cp, label="Norm. Intensity")
+
+        plt.xlabel(r"x ($w_0$)")
+        plt.ylabel(r"y ($w_0$)")
+        plt.title("Intensity contour plot LG Beam")
+    
+    def plot_long_intensity(self, x=np.linspace(-2, 2, 100), z=np.linspace(0, 4, 100)):
+        
+        x, z = np.meshgrid(x, z)
+
+        # Filled contour plot
+        rho = np.abs(x)
+        cp = plt.contourf(x, z, self.intensity(rho, z), levels=100, cmap="inferno", alpha=0.2)  # note the .T
+        # Add colorbar
+        plt.colorbar(cp, label="Norm. Intensity")
+
+        plt.xlabel(r"x ($w_0$)")
+        plt.ylabel(r"y ($w_0$)")
+        plt.title("Long. Intensity contour plot LG Beam")
+
+if __name__ == "__main__":
+    beam = LGBeamL1()
+    beam.plot_trans_intensity()
+    plt.show()
+
+    beam.plot_long_intensity()
+    plt.show()
+
+    beam = GaussianBeam()
+    beam.plot_trans_intensity()
+    plt.show()
+
+    beam.plot_long_intensity()
+    plt.show()

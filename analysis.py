@@ -472,25 +472,34 @@ def plot_density(n, rho_array, zeta_array, beam=GaussianBeam()):
     filled contour plot with 50 levels and a 'viridis' colormap.
     """
     
-    # Make 2D grid for plotting
+    # atomic density contour
     R, Z = np.meshgrid(rho_array * w0 * 1e3, zeta_array * beam.zR * 1e3)
 
-    plt.figure(figsize=(8, 6))
+    import matplotlib as mpl
 
-    # Filled contour plot
-    cp = plt.contourf(R, Z, n, levels=50, cmap="viridis")  # note the .T
+    fig, ax = plt.subplots(figsize=(8,6))
 
-    # Add colorbar
-    plt.colorbar(cp, label="Density")
+    # density background
+    cp = ax.contourf(R, Z, n, levels=50, cmap="viridis")
+    fig.colorbar(cp, ax=ax, label="Atomic Density")
 
-    plt.xlabel("r (mm)")
-    plt.ylabel("z (mm)")
-    plt.title("Density contour plot")
-    plt.show()
+    # beam intensity (normalized)
+    rho_dim = R / (w0 * 1e3)
+    zeta_dim = Z / (beam.zR * 1e3)
+    I = beam.intensity(rho_dim, zeta_dim)
+    I = I / I.max()
+
+    # overlay with alpha
+    cmap = plt.cm.inferno
+    cf = ax.contourf(R, Z, I, levels=50, cmap=cmap, alpha=0.1)
+
+    # make a mappable for the colorbar with opaque colors
+    sm = mpl.cm.ScalarMappable(norm=cf.norm, cmap=cmap)
+    sm.set_array([])  
+    fig.colorbar(sm, ax=ax, label="Beam intensity")
 
 
 
-plt.show()
 if __name__ == '__main__':
 
     from sys import argv
@@ -504,21 +513,21 @@ if __name__ == '__main__':
 
     print(f'T = {T} uK, dMOT = {dMOT} mm')
 
-    ts, f_cap = capt_atoms_vs_t(T, dMOT)
-    plot_cap_frac(ts, f_cap)
-    plt.show()
+    # ts, f_cap = capt_atoms_vs_t(T, dMOT)
+    # plot_cap_frac(ts, f_cap)
+    # plt.show()
 
-    hist_rho_step, hist_rho_init = density_at_fib(step=-1, T=T, dMOT=dMOT)
-    plot_initial_density_rho(hist_rho_init)
-    plot_density_at_fib(hist_rho_step=hist_rho_step)
-    plt.show()
+    # hist_rho_step, hist_rho_init = density_at_fib(step=-1, T=T, dMOT=dMOT)
+    # plot_initial_density_rho(hist_rho_init)
+    # plot_density_at_fib(hist_rho_step=hist_rho_step)
+    # plt.show()
 
-    plot_density_zeta_vs_t([0, 100, 200, 300, 500], T, dMOT)
-    plt.show()
+    # plot_density_zeta_vs_t([0, 100, 200, 300, 500], T, dMOT)
+    # plt.show()
 
     print(f'Percentage of atoms at the fiber: {get_last_conc(T, dMOT)*100:.2f} %')
 
-    beam=LGBeamL1()
-    n, rho_array, zeta_array = density(T, dMOT, rho_min=-2.5*RMOT/w0, rho_max=2.5*RMOT/w0, zeta_min=0, zeta_max=5, step=400)
+    beam=GaussianBeam()
+    n, rho_array, zeta_array = density(T, dMOT, rho_min=-RMOT/w0, rho_max=RMOT/w0, zeta_min=0, zeta_max=5, step=700)
     plot_density(n, rho_array, zeta_array, beam=beam)
     plt.show()
