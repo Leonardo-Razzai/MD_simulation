@@ -130,13 +130,13 @@ def simulation(N=int(1e5), T=15, dMOT=5, beam=GaussianBeam()):
 
     xres, vres = evolve_up_to(x0, v0, beam.acc, dt, N_steps, z_min=10)
     res = verlet(xres, vres, beam.acc, dt, N_steps)
-    save_data(res, T, dMOT, N, zR, tau)
+    save_data(res, T, dMOT, N, zR, tau, beam)
 
 def evolve_up_to(x0, v0, acc, dt, N_steps, z_min=5):
     res = verlet_up_to(x0, v0, acc, dt, N_steps, z_min=z_min)
     return res
 
-def save_data(res, T, dMOT, N, zR, tau):
+def save_data(res, T, dMOT, N, zR, tau, beam=GaussianBeam()):
     """
     Save raw simulation results and main parameters to disk.
 
@@ -164,17 +164,22 @@ def save_data(res, T, dMOT, N, zR, tau):
           the main simulation parameters and constants.
     """
 
-    res_folder = data_folder + f'res_T={T*1e6:.0f}uK_dMOT={dMOT*1e3:.0f}mm/'
 
-    if not os.path.exists(res_folder):
-        os.mkdir(res_folder)
+    res_folder = data_folder + f'{beam.name}/res_T={T*1e6:.0f}uK_dMOT={dMOT*1e3:.0f}mm_beam={beam.name}/'
+
+    os.makedirs(res_folder, exist_ok=True)
 
     # Save arrays
     iterator = trange(0, 3, desc="Saving", mininterval=1.0)
 
     f_names = [pos_fname, vel_fname, time_fname]
+
+    idx = np.linspace(0, len(res[0])-1, 30, dtype=int)
+
     for i in iterator:
-        np.save(res_folder + f_names[i], res[i])
+        small_res = res[i]
+        small_res = small_res[idx]
+        np.save(res_folder + f_names[i], small_res)
 
     # Save parameters in a human-readable text file
     param_file = res_folder + "parameters.txt"
@@ -185,6 +190,7 @@ def save_data(res, T, dMOT, N, zR, tau):
         f.write(f"MOT radius (RMOT): {RMOT*1e3:.2f} mm\n")
         f.write(f"MOT duration (MOT_t): {MOT_t:.3f} s\n")
         f.write(f"Num. of Atoms in simulation (N): {N:.3e}\n\n")
+        f.write(f"Beam: {beam.name}")
 
         f.write("--- Constants ---\n")
         f.write(f"w0: {w0:.3e} m\n")
@@ -206,5 +212,5 @@ if __name__ == '__main__':
     T = int(argv[1])
     dMOT = int(argv[2])
 
-    beam = LGBeamL1()
+    beam = GaussianBeam()
     simulation(N=int(1e5), T=T, dMOT=dMOT, beam=beam)

@@ -8,6 +8,7 @@ class GaussianBeam:
     Provides dimensionless accelerations in (rho, zeta).
     """
     def __init__(self):
+        self.name = "Gauss"
         self.I0 = 2 * P_b / (np.pi * w0**2)
         self.lambda_b = 1064e-9
         self.zR = zR_func(self.lambda_b)
@@ -75,6 +76,7 @@ class LGBeamL1:
     Provides dimensionless accelerations in (rho, zeta).
     """
     def __init__(self):
+        self.name = "LG"
         self.I0 = 4 * P_b / (np.pi * w0**2)
         self.lambda_b = 650e-9
         self.zR = zR_func(self.lambda_b)

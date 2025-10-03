@@ -3,6 +3,12 @@ from simulation import VMOT, V_cil, RMOT
 import matplotlib.pyplot as plt
 import os
 from Beams import GaussianBeam, LGBeamL1
+
+BEAMS = [GaussianBeam(), LGBeamL1()]
+
+def  data_fname(T, dMOT, beam=GaussianBeam()):
+    return f'{beam.name}/res_T={T:.0f}uK_dMOT={dMOT:.0f}mm_beam={beam.name}/'
+
 def compute_NMOT(N):
     """
     Compute the effective number of atoms in the cylindrical fiber volume.
@@ -28,7 +34,7 @@ def compute_NMOT(N):
     return N * VMOT / V_cil
 
 
-def capt_atoms_vs_t(T, dMOT):
+def capt_atoms_vs_t(T, dMOT, beam=GaussianBeam()):
     """
     Compute fraction of captured atoms vs time.
 
@@ -53,7 +59,7 @@ def capt_atoms_vs_t(T, dMOT):
     - |ρ| < R_trap / w0 (within fiber mode radius).
     """
 
-    res_folder = data_folder + f'res_T={T:.0f}uK_dMOT={dMOT:.0f}mm/'
+    res_folder = data_folder + data_fname(T, dMOT, beam)
 
     if os.path.exists(res_folder):
         try:
@@ -75,7 +81,7 @@ def capt_atoms_vs_t(T, dMOT):
         print(f'No simualtion was run with T={T}uK and dMOT={dMOT}mm')
         exit()
 
-def get_last_conc(T, dMOT):
+def get_last_conc(T, dMOT, beam=GaussianBeam()):
     """
     Compute the final fraction of atoms captured at the fiber.
 
@@ -97,12 +103,12 @@ def get_last_conc(T, dMOT):
     - Returns the last value of the capture fraction array.
     - The result is normalized by the effective number of atoms inside the fiber volume.
     """
-    _, conc = capt_atoms_vs_t(T, dMOT)
+    _, conc = capt_atoms_vs_t(T, dMOT, beam)
     last_conc = conc[-1]
     return last_conc
 
 
-def density_at_fib(step, T, dMOT):
+def density_at_fib(step, T, dMOT, beam=GaussianBeam()):
     """
     Compute radial density distribution of atoms at the fiber.
 
@@ -123,7 +129,7 @@ def density_at_fib(step, T, dMOT):
         Histogram (counts, bins) for initial MOT distribution.
     """
 
-    res_folder = data_folder + f'res_T={T:.0f}uK_dMOT={dMOT:.0f}mm/'
+    res_folder = data_folder + data_fname(T, dMOT, beam)
 
     if os.path.exists(res_folder):
         try:
@@ -152,7 +158,7 @@ def density_at_fib(step, T, dMOT):
         print(f'No simualtion was run with T={T}uK and dMOT={dMOT}mm')
         exit()
 
-def z_density(step, T, dMOT):
+def z_density(step, T, dMOT, beam=GaussianBeam()):
     """
     Compute axial density distribution of atoms at a given step.
 
@@ -173,7 +179,7 @@ def z_density(step, T, dMOT):
         Histogram (counts, bins) for initial MOT distribution.
     """
 
-    res_folder = data_folder + f'res_T={T:.0f}uK_dMOT={dMOT:.0f}mm/'
+    res_folder = data_folder + data_fname(T, dMOT, beam)
 
     if os.path.exists(res_folder):
         try:
@@ -194,7 +200,7 @@ def z_density(step, T, dMOT):
         print(f'No simualtion was run with T={T}uK and dMOT={dMOT}mm')
         exit()
 
-def density(T, dMOT, rho_min: float, rho_max: float, 
+def density(T, dMOT, beam, rho_min: float, rho_max: float, 
             zeta_min: float, zeta_max: float, step=-1):
 
 
@@ -234,7 +240,7 @@ def density(T, dMOT, rho_min: float, rho_max: float,
     If the folder or file does not exist, the function exits.
     """
 
-    res_folder = data_folder + f'res_T={T:.0f}uK_dMOT={dMOT:.0f}mm/'
+    res_folder = data_folder + data_fname(T, dMOT, beam)
 
     if os.path.exists(res_folder):
         try:
@@ -397,7 +403,7 @@ def plot_density_zeta(hist_zeta_step, label='Distribution of axial positions', c
     plt.ylabel('Probability density')
     plt.legend()
 
-def plot_density_zeta_vs_t(steps: list, T, dMOT):
+def plot_density_zeta_vs_t(steps: list, T, dMOT, beam):
 
     """
     Plot axial distribution at given steps.
@@ -417,12 +423,12 @@ def plot_density_zeta_vs_t(steps: list, T, dMOT):
     colors = [cmap(x) for x in np.linspace(0.1, 0.8, len(steps))]
 
     for i, step in enumerate(steps):
-        hist_zeta_step, _ = z_density(step, T, dMOT)
+        hist_zeta_step, _ = z_density(step, T, dMOT, beam)
         plot_density_zeta(hist_zeta_step, label=f'step = {step}', color=colors[i])
 
     plt.title('Axial position distribution at different times')
 
-def plot_density_rho_vs_t(steps: list, T, dMOT):
+def plot_density_rho_vs_t(steps: list, T, dMOT, beam):
     """
     Plot axial distribution at given steps.
 
@@ -441,7 +447,7 @@ def plot_density_rho_vs_t(steps: list, T, dMOT):
     colors = [cmap(x) for x in np.linspace(0.1, 0.8, len(steps))]
 
     for i, step in enumerate(steps):
-        hist_rho_step, _ = density_at_fib(step, T, dMOT)
+        hist_rho_step, _ = density_at_fib(step, T, dMOT, beam)
         plot_density_at_fib(hist_rho_step, label=f'step = {step}', color=colors[i])
 
     plt.title('Distribution of atoms at fiber at different times')
@@ -493,41 +499,47 @@ def plot_density(n, rho_array, zeta_array, beam=GaussianBeam()):
     cmap = plt.cm.inferno
     cf = ax.contourf(R, Z, I, levels=50, cmap=cmap, alpha=0.1)
 
+    ax.set_title(f'Atom and Intesity distribution ({beam.name})')
+    ax.set_xlabel(r'$\rho$ (mm)')
+    ax.set_ylabel('z (mm)')
+
     # make a mappable for the colorbar with opaque colors
     sm = mpl.cm.ScalarMappable(norm=cf.norm, cmap=cmap)
     sm.set_array([])  
     fig.colorbar(sm, ax=ax, label="Beam intensity")
-
-
 
 if __name__ == '__main__':
 
     from sys import argv
 
     if len(argv) < 3:
-        print('Specify T and dMOT')
+        print('Specify T, dMOT, Beam (Gauss or LG)')
         exit()
 
     T = int(argv[1])
     dMOT = int(argv[2])
+    beam = str(argv[3])
 
-    print(f'T = {T} uK, dMOT = {dMOT} mm')
+    print(f'T = {T} uK, dMOT = {dMOT} mm, beam = {beam}')
 
-    # ts, f_cap = capt_atoms_vs_t(T, dMOT)
-    # plot_cap_frac(ts, f_cap)
-    # plt.show()
+    for b in BEAMS:
+        if b.name == beam:
+            chosen_beam = b
 
-    # hist_rho_step, hist_rho_init = density_at_fib(step=-1, T=T, dMOT=dMOT)
-    # plot_initial_density_rho(hist_rho_init)
-    # plot_density_at_fib(hist_rho_step=hist_rho_step)
-    # plt.show()
+    ts, f_cap = capt_atoms_vs_t(T, dMOT, beam=chosen_beam)
+    plot_cap_frac(ts, f_cap)
+    plt.show()
 
-    # plot_density_zeta_vs_t([0, 100, 200, 300, 500], T, dMOT)
-    # plt.show()
+    hist_rho_step, hist_rho_init = density_at_fib(step=-1, T=T, dMOT=dMOT, beam=chosen_beam)
+    plot_initial_density_rho(hist_rho_init)
+    plot_density_at_fib(hist_rho_step=hist_rho_step)
+    plt.show()
 
-    print(f'Percentage of atoms at the fiber: {get_last_conc(T, dMOT)*100:.2f} %')
+    plot_density_zeta_vs_t([0, 5, 10, 12, 15], T, dMOT, beam=chosen_beam)
+    plt.show()
 
-    beam=GaussianBeam()
-    n, rho_array, zeta_array = density(T, dMOT, rho_min=-RMOT/w0, rho_max=RMOT/w0, zeta_min=0, zeta_max=5, step=700)
-    plot_density(n, rho_array, zeta_array, beam=beam)
+    print(f'Percentage of atoms at the fiber: {get_last_conc(T, dMOT, chosen_beam)*100:.2f} %')
+
+    n, rho_array, zeta_array = density(T, dMOT, beam=chosen_beam, rho_min=-RMOT/w0, rho_max=RMOT/w0, zeta_min=0, zeta_max=5, step=12)
+    plot_density(n, rho_array, zeta_array, beam=chosen_beam)
     plt.show()
