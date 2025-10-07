@@ -41,7 +41,7 @@ kB = 1.38064852E-23             # Boltzmann constant (J/K)
 g = 9.81                         # Grav. Acc. (m/s^2)
 
 #Trap
-P_b = 2                         # power beam (W)
+P_b = 5.0                         # power beam (W)
 R_trap = 30E-6                  # Fiber dimension (m)
 
 # Rb

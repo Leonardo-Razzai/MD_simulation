@@ -130,13 +130,13 @@ def simulation(N=int(1e5), T=15, dMOT=5, beam=GaussianBeam()):
 
     xres, vres = evolve_up_to(x0, v0, beam.acc, dt, N_steps, z_min=10)
     res = verlet(xres, vres, beam.acc, dt, N_steps)
-    save_data(res, T, dMOT, N, zR, tau, beam)
+    save_data(res, T, dMOT, N, zR, tau, t_max, beam)
 
 def evolve_up_to(x0, v0, acc, dt, N_steps, z_min=5):
     res = verlet_up_to(x0, v0, acc, dt, N_steps, z_min=z_min)
     return res
 
-def save_data(res, T, dMOT, N, zR, tau, beam=GaussianBeam()):
+def save_data(res, T, dMOT, N, zR, tau, t_max, beam=GaussianBeam()):
     """
     Save raw simulation results and main parameters to disk.
 
@@ -165,7 +165,7 @@ def save_data(res, T, dMOT, N, zR, tau, beam=GaussianBeam()):
     """
 
 
-    res_folder = data_folder + f'{beam.name}/res_T={T*1e6:.0f}uK_dMOT={dMOT*1e3:.0f}mm_beam={beam.name}/'
+    res_folder = data_folder + f'{beam.name}/Different_Powers/res_T={T*1e6:.0f}uK_dMOT={dMOT*1e3:.0f}mm_P={P_b}W/'
 
     os.makedirs(res_folder, exist_ok=True)
 
@@ -188,9 +188,11 @@ def save_data(res, T, dMOT, N, zR, tau, beam=GaussianBeam()):
         f.write(f"Temperature (T): {T*1e6:.2f} uK\n")
         f.write(f"MOT displacement (dMOT): {dMOT*1e3:.2f} mm\n")
         f.write(f"MOT radius (RMOT): {RMOT*1e3:.2f} mm\n")
-        f.write(f"MOT duration (MOT_t): {MOT_t:.3f} s\n")
-        f.write(f"Num. of Atoms in simulation (N): {N:.3e}\n\n")
-        f.write(f"Beam: {beam.name}")
+        f.write(f"Simulation Time: {t_max * tau * 1e3:.2f} ms\n")
+        f.write(f"Num. of Atoms in simulation (N): {N:.3e}\n")
+        f.write(f"Beam: {beam.name}\n")
+        f.write(f"Wavelength: {beam.lambda_b * 1e9} nm\n")
+        f.write(f"Power = {P_b} W\n\n")
 
         f.write("--- Constants ---\n")
         f.write(f"w0: {w0:.3e} m\n")
@@ -211,6 +213,11 @@ if __name__ == '__main__':
 
     T = int(argv[1])
     dMOT = int(argv[2])
+    beam_name = argv[3]
 
-    beam = GaussianBeam()
+    if beam_name == 'LG':
+        beam = LGBeamL1()
+    elif beam_name == 'Gauss':
+        beam = GaussianBeam()
+
     simulation(N=int(1e5), T=T, dMOT=dMOT, beam=beam)

@@ -6,8 +6,11 @@ from Beams import GaussianBeam, LGBeamL1
 
 BEAMS = [GaussianBeam(), LGBeamL1()]
 
-def  data_fname(T, dMOT, beam=GaussianBeam()):
-    return f'{beam.name}/res_T={T:.0f}uK_dMOT={dMOT:.0f}mm_beam={beam.name}/'
+def  data_fname(T, dMOT, beam=GaussianBeam(), middle_folder='', fname=''):
+    if fname=='':
+        return f'{beam.name}/{middle_folder}/res_T={T:.0f}uK_dMOT={dMOT:.0f}mm_beam={beam.name}/'
+    else:
+        return f'{beam.name}/{middle_folder}/{fname}/'
 
 def compute_NMOT(N):
     """
@@ -34,7 +37,7 @@ def compute_NMOT(N):
     return N * VMOT / V_cil
 
 
-def capt_atoms_vs_t(T, dMOT, beam=GaussianBeam()):
+def capt_atoms_vs_t(T, dMOT, beam=GaussianBeam(), middle_folder='', fname=''):
     """
     Compute fraction of captured atoms vs time.
 
@@ -59,7 +62,7 @@ def capt_atoms_vs_t(T, dMOT, beam=GaussianBeam()):
     - |ρ| < R_trap / w0 (within fiber mode radius).
     """
 
-    res_folder = data_folder + data_fname(T, dMOT, beam)
+    res_folder = data_folder + data_fname(T, dMOT, beam, middle_folder, fname)
 
     if os.path.exists(res_folder):
         try:
@@ -81,7 +84,7 @@ def capt_atoms_vs_t(T, dMOT, beam=GaussianBeam()):
         print(f'No simualtion was run with T={T}uK and dMOT={dMOT}mm')
         exit()
 
-def get_last_conc(T, dMOT, beam=GaussianBeam()):
+def get_last_conc(T, dMOT, beam=GaussianBeam(), middle_folder='', fname=''):
     """
     Compute the final fraction of atoms captured at the fiber.
 
@@ -103,7 +106,7 @@ def get_last_conc(T, dMOT, beam=GaussianBeam()):
     - Returns the last value of the capture fraction array.
     - The result is normalized by the effective number of atoms inside the fiber volume.
     """
-    _, conc = capt_atoms_vs_t(T, dMOT, beam)
+    _, conc = capt_atoms_vs_t(T, dMOT, beam, middle_folder, fname)
     last_conc = conc[-1]
     return last_conc
 
@@ -508,6 +511,30 @@ def plot_density(n, rho_array, zeta_array, beam=GaussianBeam()):
     sm.set_array([])  
     fig.colorbar(sm, ax=ax, label="Beam intensity")
 
+def plot_capfrac_vs_P(beam=GaussianBeam()):
+    import re
+
+    folder_path = f"Results/{beam.name}/Different_Powers"
+
+    files = os.listdir(folder_path)
+
+    powers = []
+    cp_fracs = []
+    for file in files:
+    
+        match = re.search(r"\d+\.\d+", file)
+        if match:
+            pw = float(match.group())
+            powers.append(pw)
+            cp_fracs.append(get_last_conc(T=15, dMOT=7, beam=beam, middle_folder="Different_Powers", fname=file))
+
+    if beam.name == 'Gauss':
+        wl = '1064 nm'
+    elif beam.name == 'LG':
+        wl = '650 nm'
+    plt.plot(powers, cp_fracs, '--o', label=beam.name + f' {wl}') 
+
+
 if __name__ == '__main__':
 
     from sys import argv
@@ -542,4 +569,13 @@ if __name__ == '__main__':
 
     n, rho_array, zeta_array = density(T, dMOT, beam=chosen_beam, rho_min=-RMOT/w0, rho_max=RMOT/w0, zeta_min=0, zeta_max=5, step=12)
     plot_density(n, rho_array, zeta_array, beam=chosen_beam)
+    plt.show()
+
+    plot_capfrac_vs_P(beam=GaussianBeam())
+    plot_capfrac_vs_P(beam=LGBeamL1())
+    plt.xlabel("Power (W)")
+    plt.ylabel("Final Captured Fraction (%)")
+    plt.title("Captured fraction vs Trapping PW")
+    plt.legend()
+    plt.grid()
     plt.show()
