@@ -526,13 +526,13 @@ def plot_capfrac_vs_P(beam=GaussianBeam()):
         if match:
             pw = float(match.group())
             powers.append(pw)
-            cp_fracs.append(get_last_conc(T=15, dMOT=7, beam=beam, middle_folder="Different_Powers", fname=file))
+            cp_fracs.append(get_last_conc(T=15, dMOT=7, beam=beam, middle_folder="Different_Powers", fname=file)*100)
 
     if beam.name == 'Gauss':
         wl = '1064 nm'
     elif beam.name == 'LG':
         wl = '650 nm'
-    plt.plot(powers, cp_fracs, '--o', label=beam.name + f' {wl}') 
+    plt.semilogx(powers, cp_fracs, '--o', label=beam.name + f' {wl}') 
 
 
 if __name__ == '__main__':
