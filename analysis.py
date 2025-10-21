@@ -1,11 +1,13 @@
 from Dynamics import *
 from simulation import *
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import os
 import re
 from Beams import GaussianBeam, LGBeamL1
 from Verlet import HEATING
 from Heating import GetTemperature
+from GifsMaker import MakeGif_density
 
 BEAMS = [GaussianBeam(), LGBeamL1()]
 
@@ -540,8 +542,6 @@ def plot_density(n, rho_array, zeta_array, beam=GaussianBeam()):
     # atomic density contour
     R, Z = np.meshgrid(rho_array * w0 * 1e3, zeta_array * beam.zR * 1e3)
 
-    import matplotlib as mpl
-
     fig, ax = plt.subplots(figsize=(8,6))
 
     # density background
@@ -601,6 +601,42 @@ def plot_temperature(T, dMOT, beam):
     plt.grid()
     plt.legend()
 
+def CreateGif_desnity(T: float, dMOT: float, beam=GaussianBeam(), middle_folder='', fname=''):
+
+    res_folder = data_folder + data_fname(T, dMOT, beam, middle_folder, fname)
+
+    if os.path.exists(res_folder):
+        try:
+            xs= np.load(res_folder + pos_fname)
+            z_max = np.max(xs[:, 1, :])
+            n_list = []
+            rho_list = []
+            zeta_list = []
+
+            for i in range(len(xs)):
+                n, rho_array, zeta_array = density(T, dMOT, beam=beam, rho_min=-1.5*RMOT/w0, rho_max=1.5*RMOT/w0, zeta_min=0, zeta_max=z_max, step=i)
+                n_list.append(n)
+                rho_list.append(rho_array)
+                zeta_list.append(zeta_array)
+
+            rho_array = np.array(rho_list)
+            zeta_array = np.array(zeta_list)
+            n_array = np.array(n_list)
+
+            print(f'Creating GIF for T = {T} uK, dMOT = {dMOT} mm, Beam = {beam.name}')
+            print('rho_array: ', rho_array.shape)
+            print('zeta_array: ', zeta_array.shape)
+            print('n_array: ', n_array.shape)
+
+            MakeGif_density(pos=np.array([rho_array, zeta_array]), density=n_array, beam=beam, file_name=f'density_gif_T={T}uK_dMOT={dMOT}mm_Beam={beam.name}')
+
+        except Exception as err:
+            print(f"Error: {err=}, {type(err)=}")
+            exit()
+    else:
+        print(f'No simualtion was run with T={T}uK and dMOT={dMOT}mm')
+        exit()
+
 if __name__ == '__main__':
 
     from sys import argv
@@ -637,14 +673,16 @@ if __name__ == '__main__':
     plot_density(n, rho_array, zeta_array, beam=chosen_beam)
     plt.show()
 
-    plot_capfrac_vs_P(beam=GaussianBeam())
-    plot_capfrac_vs_P(beam=LGBeamL1())
-    plt.xlabel("Power (W)")
-    plt.ylabel("Final Captured Fraction (%)")
-    plt.title("Captured fraction vs Trapping PW")
-    plt.legend()
-    plt.grid()
-    plt.show()
+    # plot_capfrac_vs_P(beam=GaussianBeam())
+    # plot_capfrac_vs_P(beam=LGBeamL1())
+    # plt.xlabel("Power (W)")
+    # plt.ylabel("Final Captured Fraction (%)")
+    # plt.title("Captured fraction vs Trapping PW")
+    # plt.legend()
+    # plt.grid()
+    # plt.show()
 
-    plot_temperature(T, dMOT, chosen_beam)
-    plt.show()
+    # plot_temperature(T, dMOT, chosen_beam)
+    # plt.show()
+
+    CreateGif_desnity(T, dMOT, chosen_beam)
