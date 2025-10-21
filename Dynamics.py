@@ -39,9 +39,10 @@ def print_physical_constants(
 c = 299792458                   # light vel in vacuum (m/s)
 kB = 1.38064852E-23             # Boltzmann constant (J/K)
 g = 9.81                         # Grav. Acc. (m/s^2)
+hbar = 1.05457182e-34           # reduced Planck constant (J*s)
 
 #Trap
-P_b = 0.01                         # power beam (W)
+P_b = 1                         # power beam (W)
 R_trap = 30E-6                  # Fiber dimension (m)
 
 # Rb
