@@ -1,0 +1,7 @@
+#!/bin/bash -l
+
+T=$1
+dMOT=$2
+Beam=$3
+
+sbatch job_interf $T $dMOT $Beam
