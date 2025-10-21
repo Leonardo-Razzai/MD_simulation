@@ -2,7 +2,7 @@ from simulation import *
 from Beams import GaussianBeam, LGBeamL1
 
 T_range = np.arange(start=5, stop=50, step=5) # uK
-dMOT_range = np.arange(start=18, stop=25, step=2) # mm
+dMOT_range = np.arange(start=24, stop=25, step=2) # mm
 
 beam = GaussianBeam()
 
