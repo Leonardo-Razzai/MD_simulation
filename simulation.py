@@ -12,10 +12,18 @@ h_max = dMOT_max + RMOT
 R_cil = 4e-4
 V_cil = 2 * np.pi * RMOT * R_cil**2
 
-MOT_t = 0.1 # s
+T_MAX = 80e-3
+N_steps = int(4e3)
+DT = T_MAX / N_steps
+
+N_save = 30 # number of saved steps
+DT_save = DT * N_save
+
+# FLAGS
+Diff_Powers = False
 
 def print_simulation_parameters(
-    N, T, dMOT, RMOT, MOT_t, w0, zR, tau,
+    N, T, dMOT, RMOT, w0, zR, tau,
     m_Rb, kB, rho_max, zeta_min, zeta_max, t_max, dt, N_steps
 ):
     """
@@ -33,7 +41,6 @@ def print_simulation_parameters(
     print(f"Number of atoms (N): {N:.2e}")
     print(f"MOT displacement (dMOT): {dMOT*1e3:.2f} mm")
     print(f"MOT radius (RMOT): {RMOT*1e3:.2f} mm")
-    print(f"MOT duration (MOT_t): {MOT_t:.2e} s")
 
     print("\n--- Initial positions ---")
     print(f"rho_max: {rho_max:.2e} [w0 units] (r_max = {rho_max * w0:.2e} m)")
@@ -47,8 +54,8 @@ def print_simulation_parameters(
     print(f"v_bar: {v_bar:.2e} m/s")
 
     print("\n--- Time discretization ---")
-    print(f"t_max: {t_max:.2e} [normalized units]")
-    print(f"dt: {dt:.2e} [normalized units]")
+    print(f"t_max: {t_max*1e3:.2f} (ms)")
+    print(f"dt: {dt*1e6:.2f} (us)")
     print(f"N_steps: {N_steps}")
 
     print("\n==============================\n")
@@ -115,28 +122,26 @@ def simulation(N=int(1e5), T=15, dMOT=5, beam=GaussianBeam()):
     v0 = np.array([v_rho_0, v_zeta_0])
 
     # Time and Num
-    t_max = MOT_t / tau / 120
-    dt = t_max / 1e3
-    N_steps = int(t_max / dt)
+    dt = DT / tau
 
     # Call this after defining constants in your script
     if __name__=='__main__':
         print_simulation_parameters(
-            N=N, T=T, dMOT=dMOT, RMOT=RMOT, MOT_t=MOT_t,
+            N=N, T=T, dMOT=dMOT, RMOT=RMOT, t_max=T_MAX,
             w0=w0, zR=zR, tau=tau, m_Rb=m_Rb, kB=kB,
             rho_max=rho_max, zeta_min=zeta_min, zeta_max=zeta_max,
-            t_max=t_max, dt=dt, N_steps=N_steps
+            dt=DT, N_steps=N_steps
         )
 
     xres, vres = evolve_up_to(x0, v0, beam.acc, dt, N_steps, z_min=10)
     res = verlet(xres, vres, beam.acc, dt, N_steps)
-    save_data(res, T, dMOT, N, zR, tau, t_max, beam)
+    save_data(res, T, dMOT, N, zR, tau, beam)
 
 def evolve_up_to(x0, v0, acc, dt, N_steps, z_min=5):
     res = verlet_up_to(x0, v0, acc, dt, N_steps, z_min=z_min)
     return res
 
-def save_data(res, T, dMOT, N, zR, tau, t_max, beam=GaussianBeam()):
+def save_data(res, T, dMOT, N, zR, tau, beam=GaussianBeam()):
     """
     Save raw simulation results and main parameters to disk.
 
@@ -164,8 +169,10 @@ def save_data(res, T, dMOT, N, zR, tau, t_max, beam=GaussianBeam()):
           the main simulation parameters and constants.
     """
 
-
-    res_folder = data_folder + f'{beam.name}/Different_Powers/res_T={T*1e6:.0f}uK_dMOT={dMOT*1e3:.0f}mm_P={P_b}W/'
+    if Diff_Powers:
+        res_folder = data_folder + f'{beam.name}/Different_Powers/res_T={T*1e6:.0f}uK_dMOT={dMOT*1e3:.0f}mm_P={P_b}W/'
+    else:
+        res_folder = data_folder + f'{beam.name}/res_T={T*1e6:.0f}uK_dMOT={dMOT*1e3:.0f}mm/'
 
     os.makedirs(res_folder, exist_ok=True)
 
@@ -174,7 +181,7 @@ def save_data(res, T, dMOT, N, zR, tau, t_max, beam=GaussianBeam()):
 
     f_names = [pos_fname, vel_fname, time_fname]
 
-    idx = np.linspace(0, len(res[0])-1, 30, dtype=int)
+    idx = np.linspace(0, len(res[0])-1, N_save, dtype=int)
 
     for i in iterator:
         small_res = res[i]
@@ -188,11 +195,11 @@ def save_data(res, T, dMOT, N, zR, tau, t_max, beam=GaussianBeam()):
         f.write(f"Temperature (T): {T*1e6:.2f} uK\n")
         f.write(f"MOT displacement (dMOT): {dMOT*1e3:.2f} mm\n")
         f.write(f"MOT radius (RMOT): {RMOT*1e3:.2f} mm\n")
-        f.write(f"Simulation Time: {t_max * tau * 1e3:.2f} ms\n")
+        f.write(f"Simulation Time: {T_MAX:.2f} s\n")
         f.write(f"Num. of Atoms in simulation (N): {N:.3e}\n")
         f.write(f"Beam: {beam.name}\n")
         f.write(f"Wavelength: {beam.lambda_b * 1e9} nm\n")
-        f.write(f"Power = {P_b} W\n\n")
+        f.write(f"Power: {P_b} W\n\n")
 
         f.write("--- Constants ---\n")
         f.write(f"w0: {w0:.3e} m\n")
