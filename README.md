@@ -205,11 +205,10 @@ cd MD_simulation
 
   ## To Do
   ### Simulation wise:
-  1) Add heating due to temperature
-  2) Extend to the atoms in the fiber to estimate their lifeltime in the fiber
-  3) Add effect of collisions with background gas
-  4) Use the real gaussian beam
-  5) Use different waists / fibers
+  1) Extend to the atoms in the fiber to estimate their lifeltime in the fiber
+  2) Add effect of collisions with background gas
+  3) Use the real gaussian beam
+  4) Use different waists / fibers
  
   ### Anlaysis
   1) Extract velocity distribution
