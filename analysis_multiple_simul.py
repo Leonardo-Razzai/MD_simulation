@@ -26,6 +26,7 @@ os.makedirs(img_folder, exist_ok=True)
 # Parameter ranges
 T_range = np.arange(start=5, stop=50, step=5)   # MOT temperature in μK
 dMOT_range = np.arange(start=2, stop=18, step=1) # MOT displacement in mm
+dMOT_range = np.concatenate([dMOT_range, np.arange(18, 25, step=2)])
 
 out_folder = img_folder + beam.name +'/'
 os.makedirs(out_folder, exist_ok=True)
