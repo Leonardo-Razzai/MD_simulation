@@ -162,7 +162,6 @@ This repository is private. If you have been added as a collaborator, you can cl
 
 ```bash
 git clone https://github.com/Leonardo-Razzai/MD_simulation
-.git
 cd MD_simulation
 ```
 
