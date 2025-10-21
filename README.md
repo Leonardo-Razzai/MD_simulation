@@ -128,7 +128,7 @@ The trapping potential is modeled via functions of scaled coordinates `(ρ, ζ)`
 * Potential derivatives:
 
   * `du/drho = -4 β(ζ)² ρ exp(-2 β(ζ) ρ²)`
-  * `du/dzeta = -4 β(ζ) ζ exp(-2 β(ζ) ρ²) (1 - 2 β(ζ) ρ²)`
+  * `du/dzeta = -2 β(ζ)² ζ exp(-2 β(ζ) ρ²) (1 - 2 β(ζ) ρ²)`
 
 * Acceleration (2D vector):
 
