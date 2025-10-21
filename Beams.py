@@ -7,7 +7,7 @@ class GaussianBeam:
     Gaussian optical beam (fundamental TEM00 mode).
     Provides dimensionless accelerations in (rho, zeta).
     """
-    def __init__(self):
+    def __init__(self, P_b=P_b):
         self.name = "Gauss"
         self.I0 = 2 * P_b / (np.pi * w0**2)
         self.lambda_b = 1064e-9
@@ -17,28 +17,45 @@ class GaussianBeam:
         self.tau = 1 / np.sqrt(self.phi)          # time scale ( 1 / sqrt(phi) is a time )
         self.vs_rho = w0 / self.tau               # radial velocity scale
         self.vs_zeta = self.zR / self.tau              # axial velocity scale
-        self.acc_sc = self.lambda_b / np.pi * self.phi
+        self.as_rho = w0 / self.tau**2
+        self.as_zeta = self.zR / self.tau**2
 
+    def w(self, z: float):
+        """
+        Beam radius.
+
+        Parameters
+        ----------
+        z : float
+            Axial coordinate.
+
+        Returns
+        -------
+        Beam radius at z:
+            w(z) = np.sqrt(1 + z**2).
+        """
+        return np.sqrt(1 + z**2)
+    
     def beta(self, zeta):
         return 1 / (1 + zeta**2)
     
     def intensity(self, rho, zeta):
         b = self.beta(zeta)
-        return b**2 * np.exp(-2 * b * rho**2)
+        return b * np.exp(-2 * b * rho**2)
 
     def du_drho(self, rho, zeta):
         b = self.beta(zeta)
-        return -4 * b**2 * rho * np.exp(-2 * b * rho**2)
+        return 4 * b * rho * self.intensity(rho, zeta)
 
     def du_dzeta(self, rho, zeta):
         b = self.beta(zeta)
-        pref = -4 * (self.lambda_b / (np.pi * w0))
-        return pref * b * zeta * np.exp(-2 * b * rho**2) * (1 - 2*b*rho**2)
+        pref = self.lambda_b**2 / (np.pi**2 * w0**2)
+        return pref * 2*b * zeta * (1 - 2*b*rho**2) * self.intensity(rho, zeta)
 
     def acc(self, x):
         rho, zeta = x
-        acc_rho = self.du_drho(rho, zeta)
-        acc_zeta = self.du_dzeta(rho, zeta) - g/self.acc_sc
+        acc_rho = - self.du_drho(rho, zeta)
+        acc_zeta = - self.du_dzeta(rho, zeta) - g/self.as_zeta
         return np.array([acc_rho, acc_zeta])
     
     def plot_trans_intensity(self):
@@ -75,7 +92,7 @@ class LGBeamL1:
     Laguerre–Gaussian donut beam (p=0, ℓ=1).
     Provides dimensionless accelerations in (rho, zeta).
     """
-    def __init__(self):
+    def __init__(self, P_b=P_b):
         self.name = "LG"
         self.I0 = 4 * P_b / (np.pi * w0**2)
         self.lambda_b = 650e-9
@@ -85,8 +102,25 @@ class LGBeamL1:
         self.tau = 1 / np.sqrt(self.phi)          # time scale ( 1 / sqrt(phi) is a time )
         self.vs_rho = w0 / self.tau               # radial velocity scale
         self.vs_zeta = self.zR / self.tau              # axial velocity scale
-        self.acc_sc = self.lambda_b / np.pi * self.phi
+        self.as_rho = w0 / self.tau**2
+        self.as_zeta = self.zR / self.tau**2
 
+    def w(self, z: float):
+        """
+        Beam radius.
+
+        Parameters
+        ----------
+        z : float
+            Axial coordinate.
+
+        Returns
+        -------
+        Beam radius at z:
+            w(z) = np.sqrt(1 + z**2).
+        """
+        return np.sqrt(1 + z**2)
+    
     def beta(self, zeta):
         return 1 / (1 + zeta**2)
 
@@ -118,12 +152,13 @@ class LGBeamL1:
         I = self.intensity(rho, zeta)
         b = self.beta(zeta)
         s = 2 * b * rho**2
-        return 4 * (self.lambda_b / (np.pi * w0)) * I * 2 * zeta * b * (2 - s)
+        prefix = self.lambda_b**2 / (np.pi**2 * w0**2)
+        return prefix * I * 2 * zeta * b * (2 - s)
 
     def acc(self, x):
         rho, zeta = x
         acc_rho = self.du_drho(rho, zeta)
-        acc_zeta = self.du_dzeta(rho, zeta) - g/self.acc_sc
+        acc_zeta = self.du_dzeta(rho, zeta) - g/self.as_zeta
         return np.array([acc_rho, acc_zeta])
     
     def plot_trans_intensity(self, x=np.linspace(-2, 2, 100), y=np.linspace(-2, 2, 100)):

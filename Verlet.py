@@ -1,10 +1,35 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from Heating  import *
+from Beams import *
 
 from tqdm import trange
 
-def verlet(x0, v0, a_func, dt, steps, progress=True):
+# FLAGS
+HEATING = False
+
+def Heating_1(xs, vs, dt, i, beam=GaussianBeam()):
+    sigma_i_rho, sigma_i_zeta = np.std(vs[i], axis=1) # std across atoms
+    r_atoms = xs[i]
+    dsigma_i = dsigma_v(r_atoms, dt, beam)
+
+    sigma_i_rho = sigma_i_rho * beam.vs_rho
+    sigma_i_zeta = sigma_i_zeta * beam.vs_zeta
+    
+    new_sigma_rho = (sigma_i_rho + dsigma_i) / beam.vs_rho
+    new_sigma_zeta = (sigma_i_zeta + dsigma_i) / beam.vs_zeta
+    
+    vs[i, 0, :] = vs[i, 0, :] + np.random.normal(0, scale=new_sigma_rho, size=len(vs[i, 0, :]))
+    vs[i, 1, :] = vs[i, 1, :] + np.random.normal(0, scale=new_sigma_zeta, size=len(vs[i, 0, :]))
+
+def Heating_2(xs, vs, dt, i, beam=GaussianBeam()):
+    r_atoms = xs[i]
+    v_atoms = vs[i]
+    new_velocity = AddScattering(r_atoms, v_atoms, dt, beam) 
+    return new_velocity
+
+def verlet(x0, v0, a_func, dt, steps, beam=GaussianBeam(), progress=True):
     """
     Integrate atomic motion using the velocity-Verlet scheme.
 
@@ -76,6 +101,9 @@ def verlet(x0, v0, a_func, dt, steps, progress=True):
 
         # Velocity (estimated with central difference)
         vs[i] = (xs[i+1] - xs[i-1]) / (2*dt) * update
+
+        if HEATING:
+           vs[i] = Heating_2(xs, vs, dt, i, beam)
 
     # Last velocity estimation
     vs[-1] = (xs[-1] - xs[-2]) / dt * update
@@ -149,6 +177,9 @@ def verlet_up_to(x0, v0, a_func, dt, steps, z_min=5):
 
         # Velocity (estimated with central difference)
         vs[i] = (xs[i+1] - xs[i-1]) / (2*dt)
+
+        if HEATING:
+            vs[i] = Heating_2(xs, vs, dt, i, beam)
 
         i+=1
     # Last velocity estimation

@@ -24,9 +24,9 @@ img_folder = './img/'
 os.makedirs(img_folder, exist_ok=True)
 
 # Parameter ranges
-T_range = np.arange(start=5, stop=120, step=5)   # MOT temperature in μK
-dMOT_range = np.arange(start=2, stop=11, step=1) # MOT displacement in mm
-dMOT_range = np.concatenate([dMOT_range, np.arange(12, 20, 1)])
+T_range = np.arange(start=5, stop=50, step=5)   # MOT temperature in μK
+dMOT_range = np.arange(start=2, stop=18, step=1) # MOT displacement in mm
+dMOT_range = np.concatenate([dMOT_range, np.arange(18, 25, step=2)])
 
 out_folder = img_folder + beam.name +'/'
 os.makedirs(out_folder, exist_ok=True)
@@ -173,8 +173,8 @@ def plot_density_vs_dMOT(T_range, dMOT_range):
 
 if __name__ == "__main__":
     print(f'Analysis {beam.name} Beam.\nSaving imgs to {out_folder}\n\n')
-    plot_cap_frac_vs_T(T_range, dMOT_range)
-    plot_density_vs_T(T_range, dMOT_range)
-    plot_cap_frac_vs_dMOT(T_range, dMOT_range)
-    plot_density_vs_dMOT(T_range, dMOT_range)
+    #plot_cap_frac_vs_T(T_range, dMOT_range)
+    #plot_density_vs_T(T_range, dMOT_range)
+    #plot_cap_frac_vs_dMOT(T_range, dMOT_range)
+    #plot_density_vs_dMOT(T_range, dMOT_range)
     plot_3d_TdMOTconc()

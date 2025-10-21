@@ -1,14 +1,19 @@
 from Dynamics import *
-from simulation import VMOT, V_cil, RMOT
+from simulation import *
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import os
+import re
 from Beams import GaussianBeam, LGBeamL1
+from Verlet import HEATING
+from Heating import GetTemperature
+from GifsMaker import MakeGif_density
 
 BEAMS = [GaussianBeam(), LGBeamL1()]
 
 def  data_fname(T, dMOT, beam=GaussianBeam(), middle_folder='', fname=''):
     if fname=='':
-        return f'{beam.name}/{middle_folder}/res_T={T:.0f}uK_dMOT={dMOT:.0f}mm_beam={beam.name}/'
+        return f'{beam.name}/{middle_folder}/res_T={T:.0f}uK_dMOT={dMOT:.0f}mm/'
     else:
         return f'{beam.name}/{middle_folder}/{fname}/'
 
@@ -143,12 +148,19 @@ def density_at_fib(step, T, dMOT, beam=GaussianBeam()):
             index_at_fib = zeta_step <= 0
 
             rho_at_fib = rho_step[index_at_fib]
+            N_at_fib = len(rho_at_fib)
 
             rho_init = xs[0, 0, :]
+            N_init = len(rho_init)
+
+            rho_max = 15
+            
+            rho_init = rho_init[(np.abs(rho_init) < rho_max)]
+            rho_at_fib = rho_at_fib[(np.abs(rho_at_fib) < rho_max)]
 
             if len(rho_at_fib) > 0:
-                hist_rho_step = np.histogram(rho_at_fib, int(np.sqrt(len(rho_at_fib))), density=True)
-                hist_rho_init = np.histogram(rho_init, int(np.sqrt(len(rho_init))), density=True)
+                hist_rho_step = np.histogram(rho_at_fib, int(np.sqrt(N_at_fib)), density=True)
+                hist_rho_init = np.histogram(rho_init, int(np.sqrt(N_init)), density=True)
 
                 return hist_rho_step, hist_rho_init
             else:
@@ -272,7 +284,73 @@ def density(T, dMOT, beam, rho_min: float, rho_max: float,
 
     return n.T, rho_centers, zeta_centers
 
-def plot_cap_frac(ts, f_cap, label='Fraction Captured', color='royalblue'):
+def GetPower(T, dMOT, beam):
+
+    res_folder = data_folder + data_fname(T, dMOT, beam)
+
+    with open(res_folder + 'parameters.txt', 'r') as file:
+        lines = file.readlines()
+        for line in lines:
+            line_frags = line.split(sep=' ')
+            if line_frags[0] == 'Power:':
+                pw = float(line_frags[1])
+                return pw
+        else:
+            print('Power not found')
+
+def GetTemp_arrays(T, dMOT, beam=GaussianBeam()):
+
+    res_folder = data_folder + data_fname(T, dMOT, beam)
+
+    if os.path.exists(res_folder):
+        try:
+            ts = np.load(res_folder + time_fname)
+            xs = np.load(res_folder + pos_fname)
+            vs = np.load(res_folder + vel_fname)
+            P_simul = GetPower(T, dMOT, beam)
+
+            if beam.name == 'Gauss':
+                beam_simul = GaussianBeam(P_simul)
+            elif beam.name == 'LG':
+                beam_simul = LGBeamL1(P_simul)
+
+        except Exception as err:
+            print(f"Error: {err=}, {type(err)=}")
+            exit()
+    else:
+        print(f'No simulation was run with T={T}uK and dMOT={dMOT}mm')
+        exit()
+    
+    rho = xs[:, 0, :]
+    zeta = xs[:, 1, :]
+    
+    vs_rho = vs[:, 0, :]
+    vs_zeta = vs[:, 1, :]
+
+    valid_times = []
+    T_rho_list = []
+    T_zeta_list = []
+
+    for i in range(len(rho)):
+        if np.sum(zeta[i] > 0) == len(zeta[0]):
+            in_trap_index = (np.abs(rho[i]) < beam_simul.w(zeta[i]))
+
+            vs_rho_i = vs_rho[i]
+            vs_zeta_i = vs_zeta[i]
+
+            vs_in_trap_rho = vs_rho_i[in_trap_index]
+            vs_in_trap_zeta = vs_zeta_i[in_trap_index]
+
+            vs_in_trap = np.array([vs_in_trap_rho, vs_in_trap_zeta])
+            T_rho, T_zeta = GetTemperature(vs_in_trap)
+            T_rho_list.append(T_rho)
+            T_zeta_list.append(T_zeta)
+            valid_times.append(ts[i])
+
+    return np.array(valid_times), np.array(T_rho_list), np.array(T_zeta_list)
+    
+
+def plot_cap_frac(ts, f_cap, beam=GaussianBeam(), label='Fraction Captured', color='royalblue'):
     """
     Plot fraction of captured atoms vs time.
 
@@ -288,9 +366,9 @@ def plot_cap_frac(ts, f_cap, label='Fraction Captured', color='royalblue'):
         Curve color.
     """
 
-    plt.plot(ts, f_cap*100, label=label, color=color)
+    plt.plot(ts * beam.tau * 1e3, f_cap*100, label=label, color=color)
     plt.title('Fraction of atoms captured at the fiber')
-    plt.xlabel(r'Time ($\tau$)')
+    plt.xlabel(r'Time (ms)')
     plt.ylabel('Atoms captured (%)')
 
 def plot_initial_density_rho(hist_rho_init):
@@ -349,89 +427,68 @@ def plot_density_at_fib(hist_rho_step, label='Distribution at the fiber', color=
     plt.title('Distribution of radial position at fiber')
     plt.xlabel(r'$\rho$ $(w_0)$')
     plt.ylabel('Probability density')
+    plt.xlim(-15, 15)
     plt.legend()
 
-def plot_initial_density_zeta(hist_zeta_init):
-    """
-    Plot initial axial distribution of MOT atoms.
+def plot_initial_density_zeta(hist_zeta_init, beam=GaussianBeam()):
+    counts, bin_edges = hist_zeta_init
 
-    Parameters
-    ----------
-    hist_zeta_init : tuple
-        Histogram of initial ρ distribution (counts, bins).
-    """
-
-    # Bin centers
-    init_bins = hist_zeta_init[1]
-
-    init_widths = np.diff(init_bins)
+    bin_edges_mm = bin_edges * beam.zR * 1e3
+    bin_centers_mm = (bin_edges_mm[:-1] + bin_edges_mm[1:]) / 2
+    bin_widths_mm = np.diff(bin_edges_mm)
 
     plt.bar(
-        init_bins[:-1], hist_zeta_init[0],
-        width=init_widths, align='edge',
+        bin_centers_mm, counts,
+        width=bin_widths_mm, align='center',
         color='blue', alpha=0.8, label='Initial distribution'
     )
 
     plt.title('Initial axial distribution of atomic positions')
-    plt.xlabel(r'$\zeta$ $(z_R)$')
+    plt.xlabel(r'$z$ $(mm)$')
     plt.ylabel('Probability density')
     plt.legend()
 
-def plot_density_zeta(hist_zeta_step, label='Distribution of axial positions', color='red'):
-    """
-    Plot axial distribution at the given step.
 
-    Parameters
-    ----------
-    hist_zeta_step : tuple
-        Histogram of ρ for atoms at fiber.
-    label : str
-        Plot label.
-    color : str
-        Bar color.
-    """
-    # Bin centers
-    step_bins = hist_zeta_step[1]
+def plot_density_zeta(hist_zeta_step, beam=GaussianBeam(), label='Distribution of axial positions', color='red'):
+    counts, bin_edges = hist_zeta_step
 
-    step_widths = np.diff(step_bins)
+    bin_edges_mm = bin_edges * beam.zR * 1e3
+    bin_centers_mm = (bin_edges_mm[:-1] + bin_edges_mm[1:]) / 2
+    bin_widths_mm = np.diff(bin_edges_mm)
 
     plt.bar(
-        step_bins[:-1], hist_zeta_step[0],
-        width=step_widths, align='edge',
+        bin_centers_mm, counts,
+        width=bin_widths_mm, align='center',
         color=color, alpha=0.8, label=label
     )
-    plt.ylim(0, 1)
-    plt.title('Distribution of radial position at fiber')
-    plt.xlabel(r'$z$ $(z_R)$')
+
+    plt.xlabel(r'$z$ $(mm)$')
     plt.ylabel('Probability density')
     plt.legend()
 
-def plot_density_zeta_vs_t(steps: list, T, dMOT, beam):
 
-    """
-    Plot axial distribution at given steps.
-
-    Parameters
-    ----------
-    steps : list
-        Steps at which computing the distributions.
-    T : float
-        MOT temperature [µK].
-    dMOT : float
-        MOT–fiber distance [mm].
-    """
-
+def plot_density_zeta_vs_t(steps, T, dMOT, beam=GaussianBeam()):
     from matplotlib import colormaps
     cmap = colormaps.get_cmap('inferno')
     colors = [cmap(x) for x in np.linspace(0.1, 0.8, len(steps))]
 
+    # Compute initial distribution
+    _, hist_zeta_init = z_density(steps[0], T, dMOT, beam)
+    z_max = np.max(hist_zeta_init[1] * beam.zR * 1e3)
+    print(f"Max z (mm): {z_max:.3f}")
+
     for i, step in enumerate(steps):
         hist_zeta_step, _ = z_density(step, T, dMOT, beam)
-        plot_density_zeta(hist_zeta_step, label=f'step = {step}', color=colors[i])
+        plot_density_zeta(
+            hist_zeta_step, beam=beam,
+            label=f't = {step * DT_save * 1e3:.2f} ms',
+            color=colors[i]
+        )
 
     plt.title('Axial position distribution at different times')
 
-def plot_density_rho_vs_t(steps: list, T, dMOT, beam):
+
+def plot_density_rho_vs_t(steps: list, T, dMOT, beam=GaussianBeam()):
     """
     Plot axial distribution at given steps.
 
@@ -454,6 +511,7 @@ def plot_density_rho_vs_t(steps: list, T, dMOT, beam):
         plot_density_at_fib(hist_rho_step, label=f'step = {step}', color=colors[i])
 
     plt.title('Distribution of atoms at fiber at different times')
+    plt.xlim(-200*w0, 200*w0)
 
 def plot_density(n, rho_array, zeta_array, beam=GaussianBeam()):
     
@@ -484,8 +542,6 @@ def plot_density(n, rho_array, zeta_array, beam=GaussianBeam()):
     # atomic density contour
     R, Z = np.meshgrid(rho_array * w0 * 1e3, zeta_array * beam.zR * 1e3)
 
-    import matplotlib as mpl
-
     fig, ax = plt.subplots(figsize=(8,6))
 
     # density background
@@ -512,7 +568,6 @@ def plot_density(n, rho_array, zeta_array, beam=GaussianBeam()):
     fig.colorbar(sm, ax=ax, label="Beam intensity")
 
 def plot_capfrac_vs_P(beam=GaussianBeam()):
-    import re
 
     folder_path = f"Results/{beam.name}/Different_Powers"
 
@@ -534,6 +589,53 @@ def plot_capfrac_vs_P(beam=GaussianBeam()):
         wl = '650 nm'
     plt.semilogx(powers, cp_fracs, '--o', label=beam.name + f' {wl}') 
 
+def plot_temperature(T, dMOT, beam):
+
+    ts, T_rho, T_zeta = GetTemp_arrays(T, dMOT, beam)
+
+    plt.semilogy(ts * beam.tau * 1e3, T_rho * 1e6, 'o--', label='Radial Temp.')
+    plt.semilogy(ts * beam.tau * 1e3, T_zeta * 1e6, 'o--', label='Axial Temp.')
+    plt.xlabel('Time (ms)')
+    plt.ylabel(r'Temperature ($\mu K$)')
+    plt.title('Temperature vs Time')
+    plt.grid()
+    plt.legend()
+
+def CreateGif_desnity(T: float, dMOT: float, beam=GaussianBeam(), middle_folder='', fname=''):
+
+    res_folder = data_folder + data_fname(T, dMOT, beam, middle_folder, fname)
+
+    if os.path.exists(res_folder):
+        try:
+            xs= np.load(res_folder + pos_fname)
+            z_max = np.max(xs[:, 1, :])
+            n_list = []
+            rho_list = []
+            zeta_list = []
+
+            for i in range(len(xs)):
+                n, rho_array, zeta_array = density(T, dMOT, beam=beam, rho_min=-1.5*RMOT/w0, rho_max=1.5*RMOT/w0, zeta_min=0, zeta_max=z_max, step=i)
+                n_list.append(n)
+                rho_list.append(rho_array)
+                zeta_list.append(zeta_array)
+
+            rho_array = np.array(rho_list)
+            zeta_array = np.array(zeta_list)
+            n_array = np.array(n_list)
+
+            print(f'Creating GIF for T = {T} uK, dMOT = {dMOT} mm, Beam = {beam.name}')
+            print('rho_array: ', rho_array.shape)
+            print('zeta_array: ', zeta_array.shape)
+            print('n_array: ', n_array.shape)
+
+            MakeGif_density(pos=np.array([rho_array, zeta_array]), density=n_array, beam=beam, file_name=f'density_gif_T={T}uK_dMOT={dMOT}mm_Beam={beam.name}')
+
+        except Exception as err:
+            print(f"Error: {err=}, {type(err)=}")
+            exit()
+    else:
+        print(f'No simualtion was run with T={T}uK and dMOT={dMOT}mm')
+        exit()
 
 if __name__ == '__main__':
 
@@ -562,20 +664,25 @@ if __name__ == '__main__':
     plot_density_at_fib(hist_rho_step=hist_rho_step)
     plt.show()
 
-    plot_density_zeta_vs_t([0, 5, 10, 12, 15], T, dMOT, beam=chosen_beam)
+    plot_density_zeta_vs_t([0, 3, 5, 7, 9, 10, 11], T, dMOT, beam=chosen_beam)
     plt.show()
 
     print(f'Percentage of atoms at the fiber: {get_last_conc(T, dMOT, chosen_beam)*100:.2f} %')
 
-    n, rho_array, zeta_array = density(T, dMOT, beam=chosen_beam, rho_min=-RMOT/w0, rho_max=RMOT/w0, zeta_min=0, zeta_max=5, step=12)
+    n, rho_array, zeta_array = density(T, dMOT, beam=chosen_beam, rho_min=-1.5*RMOT/w0, rho_max=1.5*RMOT/w0, zeta_min=0, zeta_max=5, step=11)
     plot_density(n, rho_array, zeta_array, beam=chosen_beam)
     plt.show()
 
-    plot_capfrac_vs_P(beam=GaussianBeam())
-    plot_capfrac_vs_P(beam=LGBeamL1())
-    plt.xlabel("Power (W)")
-    plt.ylabel("Final Captured Fraction (%)")
-    plt.title("Captured fraction vs Trapping PW")
-    plt.legend()
-    plt.grid()
-    plt.show()
+    # plot_capfrac_vs_P(beam=GaussianBeam())
+    # plot_capfrac_vs_P(beam=LGBeamL1())
+    # plt.xlabel("Power (W)")
+    # plt.ylabel("Final Captured Fraction (%)")
+    # plt.title("Captured fraction vs Trapping PW")
+    # plt.legend()
+    # plt.grid()
+    # plt.show()
+
+    # plot_temperature(T, dMOT, chosen_beam)
+    # plt.show()
+
+    CreateGif_desnity(T, dMOT, chosen_beam)
