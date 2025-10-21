@@ -270,8 +270,8 @@ def density(T, dMOT, beam, rho_min: float, rho_max: float,
         exit()
 
     # Define bin edges
-    rho_array = np.linspace(rho_min, rho_max, 501)  # 100 bins
-    zeta_array = np.linspace(zeta_min, zeta_max, 501)
+    rho_array = np.linspace(rho_min, rho_max, 301)  # 100 bins
+    zeta_array = np.linspace(zeta_min, zeta_max, 301)
 
     # Compute 2D histogram (counts in each bin)
     n, rho_edges, zeta_edges = np.histogram2d(
