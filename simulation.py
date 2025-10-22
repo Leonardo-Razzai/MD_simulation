@@ -2,6 +2,7 @@ from Dynamics import *
 from Verlet import *
 import numpy as np
 import os
+import sys
 from Beams import GaussianBeam, LGBeamL1
 
 # MOT characteristics
@@ -133,15 +134,15 @@ def simulation(N=int(1e5), T=15, dMOT=5, beam=GaussianBeam()):
             dt=DT, N_steps=N_steps
         )
 
-    xres, vres = evolve_up_to(x0, v0, beam.acc, dt, N_steps, z_min=10)
-    res = verlet(xres, vres, beam.acc, dt, N_steps)
-    save_data(res, T, dMOT, N, zR, tau, beam)
+    xres, vres = evolve_up_to(x0=x0, v0=v0, acc=beam.acc, dt=dt, N_steps=N_steps, z_min=10, HEATING=HEATING)
+    res = verlet(x0=xres, v0=vres, a_func=beam.acc, dt=dt, steps=N_steps, HEATING=HEATING)
+    save_data(res=res, T=T, dMOT=dMOT, N=N, zR=zR, tau=tau, beam=beam, P_b=P_b, HEATING=HEATING)
 
-def evolve_up_to(x0, v0, acc, dt, N_steps, z_min=5):
-    res = verlet_up_to(x0, v0, acc, dt, N_steps, z_min=z_min)
+def evolve_up_to(x0, v0, acc, dt, N_steps, z_min=5, HEATING=False):
+    res = verlet_up_to(x0, v0, acc, dt, N_steps, z_min=z_min, HEATING=HEATING)
     return res
 
-def save_data(res, T, dMOT, N, zR, tau, beam=GaussianBeam()):
+def save_data(res, T, dMOT, N, zR, tau, beam=GaussianBeam(), P_b=1.0, HEATING=False):
     """
     Save raw simulation results and main parameters to disk.
 
@@ -199,7 +200,8 @@ def save_data(res, T, dMOT, N, zR, tau, beam=GaussianBeam()):
         f.write(f"Num. of Atoms in simulation (N): {N:.3e}\n")
         f.write(f"Beam: {beam.name}\n")
         f.write(f"Wavelength: {beam.lambda_b * 1e9} nm\n")
-        f.write(f"Power: {P_b} W\n\n")
+        f.write(f"Power: {P_b} W\n")
+        f.write(f"Heating: {HEATING} \n\n")
 
         f.write("--- Constants ---\n")
         f.write(f"w0: {w0:.3e} m\n")
@@ -221,6 +223,16 @@ if __name__ == '__main__':
     T = int(argv[1])
     dMOT = int(argv[2])
     beam_name = argv[3]
+
+    if argv[4] != None:
+        P_b = float(argv[4]) # power beam (W)
+    else:
+        P_b = 1
+
+    if argv[5] != None:
+        HEATING = bool(argv[5])
+    else:
+        HEATING = False
 
     if beam_name == 'LG':
         beam = LGBeamL1()

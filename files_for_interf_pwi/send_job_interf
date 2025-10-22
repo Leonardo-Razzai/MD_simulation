@@ -3,5 +3,7 @@
 T=$1
 dMOT=$2
 Beam=$3
+P_b=$4
+Heating=$5
 
-sbatch job_interf $T $dMOT $Beam
+sbatch job_interf $T $dMOT $Beam $P_b $Heating

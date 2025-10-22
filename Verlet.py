@@ -6,9 +6,6 @@ from Beams import *
 
 from tqdm import trange
 
-# FLAGS
-HEATING = False
-
 def Heating_1(xs, vs, dt, i, beam=GaussianBeam()):
     sigma_i_rho, sigma_i_zeta = np.std(vs[i], axis=1) # std across atoms
     r_atoms = xs[i]
@@ -29,7 +26,7 @@ def Heating_2(xs, vs, dt, i, beam=GaussianBeam()):
     new_velocity = AddScattering(r_atoms, v_atoms, dt, beam) 
     return new_velocity
 
-def verlet(x0, v0, a_func, dt, steps, beam=GaussianBeam(), progress=True):
+def verlet(x0, v0, a_func, dt, steps, beam=GaussianBeam(), HEATING=False, progress=True):
     """
     Integrate atomic motion using the velocity-Verlet scheme.
 
@@ -110,7 +107,7 @@ def verlet(x0, v0, a_func, dt, steps, beam=GaussianBeam(), progress=True):
 
     return xs, vs, ts
 
-def verlet_up_to(x0, v0, a_func, dt, steps, z_min=5):
+def verlet_up_to(x0, v0, a_func, dt, steps, z_min=5, HEATING=False):
     """
     Integrate atomic motion using the velocity-Verlet scheme.
 

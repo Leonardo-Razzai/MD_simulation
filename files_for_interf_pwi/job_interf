@@ -12,9 +12,11 @@
 T=$1
 dMOT=$2
 Beam=$3
+P_b=$4
+Heating=$5
 
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 # running
 source /home/software/materia/intel/oneapi/setvars.sh --force
 module load materia/qe/7.1_intel-oneapi
-mpirun -np 56 python3 simulation.py $T $dMOT $Beam
+mpirun -np 56 python3 simulation.py $T $dMOT $Beam $P_b $Heating
