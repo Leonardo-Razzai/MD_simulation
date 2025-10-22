@@ -5,7 +5,7 @@
 #SBATCH --constraint=ib          
 #SBATCH --ntasks-per-node=56
 #SBATCH --sockets-per-node=2
-#SBATCH --partition=m1,m2,m3, m4, m5, m6, m7, b1, b2, b3
+#SBATCH --partition=m1,m2,m3,b1,b2,b3
 #SBATCH --job-name=md_simul
 #SBATCH --output=JOB.o
 
