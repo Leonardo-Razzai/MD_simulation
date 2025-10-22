@@ -1,7 +1,7 @@
 #!/bin/bash -l
 #SBATCH --time=00:00:05
 #SBATCH --nodes=1
-#SBATCH --mem=64G
+#SBATCH --mem=2G
 #SBATCH --constraint=ib          
 #SBATCH --ntasks-per-node=56
 #SBATCH --sockets-per-node=2
