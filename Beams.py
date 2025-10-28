@@ -61,7 +61,7 @@ class Beam:
     def plot_long_intensity(self, x=np.linspace(-2, 2, 100), z=np.linspace(0, 4, 100)):
         x, z = np.meshgrid(x, z)
         rho = np.abs(x)
-        cp = plt.contourf(x, z, self.intensity(rho, z), levels=100, cmap="inferno", alpha=0.2)
+        cp = plt.contourf(x, z, self.intensity(rho, z), levels=100, cmap="inferno", alpha=0.7)
         plt.colorbar(cp, label="Norm. Intensity")
         plt.xlabel(r"x ($w_0$)")
         plt.ylabel(r"z ($z_R$)")
