@@ -10,8 +10,6 @@ RMOT = 1e-3 # m
 VMOT = 4/3 * np.pi * RMOT**3
 dMOT_max = 20e-3 # m
 h_max = dMOT_max + RMOT
-R_cil = 4e-4
-V_cil = 2 * np.pi * RMOT * R_cil**2
 
 T_MAX = 80e-3
 N_steps = int(4e3)
@@ -20,12 +18,19 @@ DT = T_MAX / N_steps
 N_save = 30 # number of saved steps
 DT_save = DT * N_save
 
+GaussBeam_Lambda = 1064e-9 # m
+LGBeam_Lambda = 772e-9 # m
+
 # FLAGS
 Diff_Powers = False
 
 def print_simulation_parameters(
-    N, T, dMOT, RMOT, w0, zR, tau,
-    m_Rb, kB, rho_max, zeta_min, zeta_max, t_max, dt, N_steps
+    N, T, dMOT, RMOT,
+    w0, zR, tau,
+    m_Rb, kB,
+    rho_max, zeta_min, zeta_max,
+    t_max, dt, N_steps,
+    beam_name, P_b, lambda_b, w0_b
 ):
     """
     Print the main simulation parameters and derived quantities.
@@ -35,34 +40,96 @@ def print_simulation_parameters(
     vs_rho = w0 / tau
     vs_zeta = zR / tau
     alpha = m_Rb / (2 * kB * T)
-    v_bar = np.sqrt(np.pi / alpha)
+    v_rms = np.sqrt(np.pi / alpha)
 
     print("\n=== SIMULATION PARAMETERS ===")
-    print(f"Temperature (T): {T*1e6:.2f} uK")
-    print(f"Number of atoms (N): {N:.2e}")
-    print(f"MOT displacement (dMOT): {dMOT*1e3:.2f} mm")
-    print(f"MOT radius (RMOT): {RMOT*1e3:.2f} mm")
+    print("\n--- MOT parameters ---")
+    print(f"T: {T*1e6:.2f} uK")
+    print(f"N_atoms (N): {N:.2e}")
+    print(f"dMOT: {dMOT*1e3:.2f} mm")
+    print(f"RMOT: {RMOT*1e3:.2f} mm")
+
+    print("\n--- Beam parameters ---")
+    print(f"Beam_name: {beam_name}")
+    print(f"Power: {P_b:.2f} W")
+    print(f"Lambda_b: {lambda_b*1e9:.3f} nm")
+    print(f"w0_b: {w0_b*1e6:.3f} um")
 
     print("\n--- Initial positions ---")
-    print(f"rho_max: {rho_max:.2e} [w0 units] (r_max = {rho_max * w0:.2e} m)")
-    print(f"zeta_min: {zeta_min:.2e} [zR units] (z_min = {zeta_min * zR:.2e} m)")
-    print(f"zeta_max: {zeta_max:.2e} [zR units] (z_max = {zeta_max * zR:.2e} m)")
+    print(f"rho_max: {rho_max:.2e} (w0 units) (r_max = {rho_max * w0:.2e} m)")
+    print(f"zeta_min: {zeta_min:.2e} (zR units) (z_min = {zeta_min * zR:.2e} m)")
+    print(f"zeta_max: {zeta_max:.2e} (zR units) (z_max = {zeta_max * zR:.2e} m)")
 
     print("\n--- Velocity scales ---")
     print(f"vs_rho: {vs_rho:.2e} m/s")
     print(f"vs_zeta: {vs_zeta:.2e} m/s")
     print(f"alpha: {alpha:.2e} (s/m)**2")
-    print(f"v_bar: {v_bar:.2e} m/s")
+    print(f"v_rms: {v_rms:.2e} m/s")
 
     print("\n--- Time discretization ---")
-    print(f"t_max: {t_max*1e3:.2f} (ms)")
-    print(f"dt: {dt*1e6:.2f} (us)")
+    print(f"t_max: {t_max*1e3:.2f} ms")
+    print(f"dt: {dt*1e6:.2f} us")
     print(f"N_steps: {N_steps}")
 
     print("\n==============================\n")
 
+def write_params_to_file(
+    res_folder: str,
+    N: int, T: float, dMOT: float, RMOT: float, # MOT params
+    beam_name: str, P_b: float, lambda_b: float, w0_b: float, HEATING: bool, # Beam params
+    w0: float, zR: float, tau: float, # length and time scales
+    rho_max: float, zeta_min: float, zeta_max: float, # max/min position values
+    t_max: float, dt: float, N_steps: int # time steps
+):
+    """
+    Print the main simulation parameters and derived quantities to parameters.txt.
+    """
 
-def simulation(N=int(1e5), T=15, dMOT=5, beam=GaussianBeam()):
+    # Velocity scales
+    vs_rho = w0 / tau
+    vs_zeta = zR / tau
+    alpha = m_Rb / (2 * kB * T)
+    v_rms = np.sqrt(np.pi / alpha)
+
+    param_file = res_folder + "parameters.txt"
+
+    with open(param_file, "w") as f:
+        f.write("\n=== SIMULATION PARAMETERS ===")
+        f.write("\n--- MOT parameters ---")
+        f.write(f"\nT: {T*1e6:.2f} uK")
+        f.write(f"\nN_atoms (N): {N:.2e}")
+        f.write(f"\ndMOT: {dMOT*1e3:.2f} mm")
+        f.write(f"\nRMOT: {RMOT*1e3:.2f} mm\n")
+
+        f.write("\n--- Beam parameters ---")
+        f.write(f"\nBeam_name: {beam_name}")
+        f.write(f"\nPower: {P_b:.2f} W")
+        f.write(f"\nLambda_b: {lambda_b*1e9:.1f} nm")
+        f.write(f"\nw0_b: {w0_b*1e6:.1f} um")
+        f.write(f"\nHeating: {HEATING} \n")
+
+        f.write("\n--- Initial positions ---")
+        f.write(f"\nrho_max: {rho_max:.2e} (w0 units) (r_max = {rho_max * w0:.2e} m)")
+        f.write(f"\nzeta_min: {zeta_min:.2e} (zR units) (z_min = {zeta_min * zR:.2e} m)")
+        f.write(f"\nzeta_max: {zeta_max:.2e} (zR units) (z_max = {zeta_max * zR:.2e} m)")
+
+        f.write("\n--- Scales ---")
+        f.write(f"\nw0: {w0:.3e} m")
+        f.write(f"\nzR: {zR:.3e} m")
+        f.write(f"\ntau: {tau:.3e} s")
+        f.write(f"\nvs_rho: {vs_rho:.2e} m/s")
+        f.write(f"\nvs_zeta: {vs_zeta:.2e} m/s")
+        f.write(f"\nalpha: {alpha:.2e} (s/m)**2")
+        f.write(f"\nv_rms: {v_rms:.2e} m/s")
+
+        f.write("\n--- Time discretization ---")
+        f.write(f"\nt_max: {t_max*1e3:.2f} ms")
+        f.write(f"\ndt: {dt*1e6:.2f} us")
+        f.write(f"\nN_steps: {N_steps}\n")
+
+        f.write("\n==============================\n")
+
+def simulation(N=int(1e5), T=15, dMOT=5, beam=GaussianBeam(), HEATING=False):
     """
     Run a full atom trajectory simulation.
 
@@ -99,6 +166,7 @@ def simulation(N=int(1e5), T=15, dMOT=5, beam=GaussianBeam()):
     vs_rho = beam.vs_rho
     vs_zeta = beam.vs_zeta
     tau = beam.tau
+    w0 = beam.w0_b
 
     # initial positions
     z_max = dMOT + RMOT
@@ -131,49 +199,46 @@ def simulation(N=int(1e5), T=15, dMOT=5, beam=GaussianBeam()):
             N=N, T=T, dMOT=dMOT, RMOT=RMOT, t_max=T_MAX,
             w0=w0, zR=zR, tau=tau, m_Rb=m_Rb, kB=kB,
             rho_max=rho_max, zeta_min=zeta_min, zeta_max=zeta_max,
-            dt=DT, N_steps=N_steps
+            dt=DT, N_steps=N_steps,
+            beam_name=beam_name, P_b=P_b, lambda_b=beam.lambda_b, w0_b=beam.w0_b
         )
 
     xres, vres = evolve_up_to(x0=x0, v0=v0, acc=beam.acc, dt=dt, N_steps=N_steps, z_min=10, HEATING=HEATING)
     res = verlet(x0=xres, v0=vres, a_func=beam.acc, dt=dt, steps=N_steps, HEATING=HEATING)
-    save_data(res=res, T=T, dMOT=dMOT, N=N, zR=zR, tau=tau, beam=beam, P_b=P_b, HEATING=HEATING)
+
+    # Save data and parameters
+    save_data(res, 
+        N, T, dMOT, RMOT, # MOT params
+        beam_name, beam.P_b, beam.lambda_b, beam.w0_b, HEATING, # Beam params
+        w0, zR, tau, # length and time scales
+        rho_max, zeta_min, zeta_max, # max/min position values
+        t_max=T_MAX, dt=dt, N_steps=N_steps # time steps
+    )
 
 def evolve_up_to(x0, v0, acc, dt, N_steps, z_min=5, HEATING=False):
     res = verlet_up_to(x0, v0, acc, dt, N_steps, z_min=z_min, HEATING=HEATING)
     return res
 
-def save_data(res, T, dMOT, N, zR, tau, beam=GaussianBeam(), P_b=1.0, HEATING=False):
+def save_data(res, 
+    N: int, T: float, dMOT: float, RMOT: float, # MOT params
+    beam_name: str, P_b: float, lambda_b: float, w0_b: float, HEATING: bool, # Beam params
+    w0: float, zR: float, tau: float, # length and time scales
+    rho_max: float, zeta_min: float, zeta_max: float, # max/min position values
+    t_max: float, dt: float, N_steps: int # time steps
+):
     """
     Save raw simulation results and main parameters to disk.
-
-    Parameters
-    ----------
-    res : tuple
-        Output of `verlet` (xs, vs, ts).
-    T : float
-        Temperature [K].
-    dMOT : float
-        MOT–fiber distance [m].
-    N : float
-        Number of atoms inside the cylindrical volume.
-
-    Notes
-    -----
-    - Results are saved in a folder named
-      `res_T={T}uK_dMOT={dMOT}mm/` inside `data_folder/`.
-    - Arrays saved:
-        * positions.npy : atom trajectories
-        * velocities.npy : atom velocities
-        * times.npy : time steps
-    - Parameters saved:
-        * parameters.txt : human-readable file containing
-          the main simulation parameters and constants.
     """
 
     if Diff_Powers:
-        res_folder = data_folder + f'{beam.name}/Different_Powers/res_T={T*1e6:.0f}uK_dMOT={dMOT*1e3:.0f}mm_P={P_b}W/'
+        res_folder = data_folder + f'{beam_name}/Different_Powers/res_T={T*1e6:.0f}uK_dMOT={dMOT*1e3:.0f}mm_P={P_b}W/'
     else:
-        res_folder = data_folder + f'{beam.name}/res_T={T*1e6:.0f}uK_dMOT={dMOT*1e3:.0f}mm/'
+        if HEATING:
+            out_folder = beam_name + '/Heating'
+        else:
+            out_folder = beam_name
+            
+        res_folder = data_folder + f'{out_folder}/res_T={T*1e6:.0f}uK_dMOT={dMOT*1e3:.0f}mm/'
 
     os.makedirs(res_folder, exist_ok=True)
 
@@ -190,53 +255,45 @@ def save_data(res, T, dMOT, N, zR, tau, beam=GaussianBeam(), P_b=1.0, HEATING=Fa
         np.save(res_folder + f_names[i], small_res)
 
     # Save parameters in a human-readable text file
-    param_file = res_folder + "parameters.txt"
-    with open(param_file, "w") as f:
-        f.write("=== SIMULATION PARAMETERS ===\n")
-        f.write(f"Temperature (T): {T*1e6:.2f} uK\n")
-        f.write(f"MOT displacement (dMOT): {dMOT*1e3:.2f} mm\n")
-        f.write(f"MOT radius (RMOT): {RMOT*1e3:.2f} mm\n")
-        f.write(f"Simulation Time: {T_MAX:.2f} s\n")
-        f.write(f"Num. of Atoms in simulation (N): {N:.3e}\n")
-        f.write(f"Beam: {beam.name}\n")
-        f.write(f"Wavelength: {beam.lambda_b * 1e9} nm\n")
-        f.write(f"Power: {P_b} W\n")
-        f.write(f"Heating: {HEATING} \n\n")
-
-        f.write("--- Constants ---\n")
-        f.write(f"w0: {w0:.3e} m\n")
-        f.write(f"zR: {zR:.3e} m\n")
-        f.write(f"tau: {tau:.3e} s\n")
-        f.write(f"m_Rb: {m_Rb:.3e} kg\n")
-        f.write(f"kB: {kB:.3e} J/K\n")
-
-    print(f"Parameters saved in {param_file}")
+    write_params_to_file(res_folder,
+                         N, T, dMOT, RMOT,
+                         beam_name, P_b, beam.lambda_b, beam.w0_b, HEATING,
+                         w0, zR, tau,
+                         rho_max, zeta_min, zeta_max,
+                         t_max, dt, N_steps)
 
 
 if __name__ == '__main__':
     from sys import argv
 
-    if len(argv) < 3:
-        print('Specify T and dMOT')
-        exit()
+    try:
+        if len(argv) < 3:
+            print('Specify T and dMOT')
+            exit()
 
-    T = int(argv[1])
-    dMOT = int(argv[2])
-    beam_name = argv[3]
+        T = int(argv[1])
+        dMOT = int(argv[2])
+        beam_name = argv[3]
 
-    if argv[4] != None:
-        P_b = float(argv[4]) # power beam (W)
-    else:
-        P_b = 1
+        if argv[4] != None:
+            P_b = float(argv[4]) # power beam (W)
+        else:
+            P_b = 1
 
-    if argv[5] != None:
-        HEATING = bool(argv[5])
-    else:
-        HEATING = False
+        if argv[5] != None:
+            HEATING = bool(argv[5])
+        else:
+            HEATING = False
 
-    if beam_name == 'LG':
-        beam = LGBeamL1()
-    elif beam_name == 'Gauss':
-        beam = GaussianBeam()
-
-    simulation(N=int(1e5), T=T, dMOT=dMOT, beam=beam)
+        if beam_name == 'LG':
+            beam = LGBeamL1(P_b=P_b, lambda_b=LGBeam_Lambda, w0_b=19e-6)
+        elif beam_name == 'Gauss':
+            beam = GaussianBeam(P_b=P_b, lambda_b=GaussBeam_Lambda, w0_b=19e-6)
+    
+    except Exception:
+        print("\nUsage: python ./simulation.py <T> <dMOT> <Beam> <P_b> <HEATING>\n")
+    
+    try:
+        simulation(N=int(1e5), T=T, dMOT=dMOT, beam=beam, HEATING=HEATING)
+    except Exception as e:
+        print(e)

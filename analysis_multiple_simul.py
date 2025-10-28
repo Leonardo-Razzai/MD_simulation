@@ -14,21 +14,32 @@ from matplotlib import colormaps
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-from Beams import GaussianBeam, LGBeamL1
+from Beams import beams
+from sys import argv
 
 # Select Beam
-beam = GaussianBeam()
+if len(argv) > 1:
+    beam_name = argv[1]
+else:
+    print('\nSpecify a valid beam name:\nGauss : Gaussian beam\nLG : Laguerre-Gauss beam\n\n')
+    exit()
+
+if beam_name not in ['Gauss', 'LG']:
+    print('\nSpecify a valid beam name:\nGauss : Gaussian beam\nLG : Laguerre-Gauss beam\n\n') 
+    exit()
+
+beam = beams[beam_name]
 
 # Output folder for figures
 img_folder = './img/'
 os.makedirs(img_folder, exist_ok=True)
+os.makedirs(img_folder + f'/{beam_name}/', exist_ok=True)
 
 # Parameter ranges
 T_range = np.arange(start=5, stop=50, step=5)   # MOT temperature in μK
-dMOT_range = np.arange(start=2, stop=18, step=1) # MOT displacement in mm
-dMOT_range = np.concatenate([dMOT_range, np.arange(18, 25, step=2)])
+dMOT_range = np.arange(start=2, stop=18, step=2) # MOT displacement in mm
 
-out_folder = img_folder + beam.name +'/'
+out_folder = img_folder + beam_name +'/'
 os.makedirs(out_folder, exist_ok=True)
 
 # --- 1. Capture fraction vs. time at fixed dMOT, varying T ---
@@ -46,7 +57,7 @@ def plot_3d_TdMOTconc():
     # Fill Z with function values
     for i in range(T_array.shape[0]):
         for j in range(T_array.shape[1]):
-            Z[i, j] = get_last_conc(T_array[i, j], dMOT_array[i, j], beam=beam)
+            Z[i, j] = get_frac(T_array[i, j], dMOT_array[i, j], steps=np.array([-1]), beam=beam)
 
     Z = Z * 100 # in %
     # Plot
@@ -82,7 +93,7 @@ def plot_cap_frac_vs_T(T_range, dMOT_range):
             label = f'T = {T} μK, dMOT = {dMOT} mm'
             print(label)
 
-            ts, f_cap = capt_atoms_vs_t(T, dMOT, beam=beam)
+            ts, f_cap = capt_frac_vs_t(T, dMOT, beam=beam)
             plot_cap_frac(ts, f_cap, label=label, color=colors[i])
 
         plt.legend()
@@ -134,7 +145,7 @@ def plot_cap_frac_vs_dMOT(T_range, dMOT_range):
             label = f'T = {T} μK, dMOT = {dMOT} mm'
             print(label)
 
-            ts, f_cap = capt_atoms_vs_t(T, dMOT, beam=beam)
+            ts, f_cap = capt_frac_vs_t(T, dMOT, beam=beam)
             plot_cap_frac(ts, f_cap, label=label, color=colors[i])
 
         plt.legend()
@@ -173,8 +184,8 @@ def plot_density_vs_dMOT(T_range, dMOT_range):
 
 if __name__ == "__main__":
     print(f'Analysis {beam.name} Beam.\nSaving imgs to {out_folder}\n\n')
-    #plot_cap_frac_vs_T(T_range, dMOT_range)
-    #plot_density_vs_T(T_range, dMOT_range)
-    #plot_cap_frac_vs_dMOT(T_range, dMOT_range)
-    #plot_density_vs_dMOT(T_range, dMOT_range)
+    plot_cap_frac_vs_T(T_range, dMOT_range)
+    plot_density_vs_T(T_range, dMOT_range)
+    plot_cap_frac_vs_dMOT(T_range, dMOT_range)
+    plot_density_vs_dMOT(T_range, dMOT_range)
     plot_3d_TdMOTconc()

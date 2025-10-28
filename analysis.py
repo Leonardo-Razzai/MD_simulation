@@ -1,23 +1,186 @@
-from Dynamics import *
 from simulation import *
 import matplotlib.pyplot as plt
+from matplotlib import colormaps
 import matplotlib as mpl
 import os
 import re
-from Beams import GaussianBeam, LGBeamL1
-from Verlet import HEATING
+from Beams import beams
 from Heating import GetTemperature
 from GifsMaker import MakeGif_density
 
-BEAMS = [GaussianBeam(), LGBeamL1()]
+def  data_fname(T, dMOT, beam_name, middle_folder=''):
+    
+    res_fname = f'res_T={T:.0f}uK_dMOT={dMOT:.0f}mm/'
 
-def  data_fname(T, dMOT, beam=GaussianBeam(), middle_folder='', fname=''):
-    if fname=='':
-        return f'{beam.name}/{middle_folder}/res_T={T:.0f}uK_dMOT={dMOT:.0f}mm/'
+    if middle_folder=='':
+        simul_path =  data_folder + f'{beam_name}/{res_fname}'
+        if os.path.exists(simul_path):
+            return simul_path
+        else:
+            print(f'No simulation present at {simul_path}')
     else:
-        return f'{beam.name}/{middle_folder}/{fname}/'
+        simul_path = data_folder + f'{beam_name}/{middle_folder}/{res_fname}/'
+        if os.path.exists(simul_path):
+            return simul_path
+        else:
+            print(f'No simulation present at {simul_path}')
 
-def compute_NMOT(N):
+def LoadTime(simul_path: str):
+    """
+    Load simulation time array from the folder.
+    
+    Parameters
+    ----------
+    simul_path : str
+        Path to the simulation folder.
+
+    Returns
+    -------
+    ts : np.ndarray
+        Time points array.
+    """
+    try:
+        ts = np.load(simul_path + time_fname, allow_pickle=True)
+        return ts
+    except FileNotFoundError:
+        print(f"Time file not found in {simul_path}")
+        return None
+
+def LoadPosition(simul_path: str):
+    """
+    Load particle positions from the simulation folder.
+
+    Returns
+    -------
+    xs : np.ndarray
+        Shape: (time_steps, 2, N_atoms) -> rho, zeta
+    """
+    try:
+        xs = np.load(simul_path + pos_fname, allow_pickle=True)
+        return xs
+    except FileNotFoundError:
+        print(f"Position file not found in {simul_path}")
+        return None
+
+def LoadVelocity(simul_path: str):
+    """
+    Load particle velocities from the simulation folder.
+
+    Returns
+    -------
+    vs : np.ndarray
+        Shape: (time_steps, 2, N_atoms) -> vrho, vzeta
+    """
+    try:
+        vs = np.load(simul_path + vel_fname, allow_pickle=True)
+        return vs
+    except FileNotFoundError:
+        print(f"Velocity file not found in {simul_path}")
+        return None
+
+def get_file_content(file_path):
+    """
+    Reads the content of the simulation parameter file.
+    """
+    try:
+        # 'r' mode means read-only
+        with open(file_path, 'r') as file:
+            # .read() reads the entire file content into a single string
+            file_content = file.read()
+            return file_content
+            
+    except FileNotFoundError:
+        print(f"Error: Parameter file not found at {file_path}")
+        return None
+    except Exception as e:
+        print(f"An unexpected error occurred while reading the file: {e}")
+        return None
+    
+def GetParam(simul_path: str, param: str):
+    """
+    Reads a numerical parameter from the provided text content.
+    
+    Args:
+        simul_path (str): Path to simulation folder.
+        param (str): The name of the parameter to retrieve (e.g., 'Temperature', 'dMOT', 'm_Rb').
+    
+    Returns:
+        float or None: The numerical value of the parameter, or None if not found.
+    """
+    # Escape any special characters in the parameter name (though unlikely needed here)
+    escaped_param = re.escape(param) 
+    
+    pattern = rf'({escaped_param}).*?:?\s*([+-]?\d+\.?\d*(?:[Ee][+-]?\d+)?)'
+
+    simul_path = data_fname(T, dMOT, beam_name)
+    file_content = get_file_content(simul_path + 'parameters.txt')
+
+    match = re.search(pattern, file_content, re.IGNORECASE)
+
+    if match:
+        try:
+            # The number is captured in group 2
+            return float(match.group(2))
+        except ValueError:
+            print(f"Error: Value '{match.group(2)}' for parameter '{param}' is not a valid number.")
+            return None
+    else:
+        # Check for multi-word parameters by searching line-by-line using simpler logic
+        # This handles keys like 'MOT displacement (dMOT)'
+        for line in file_content.splitlines():
+            if param in line:
+                 # Strip units/trailing text and try to extract the last 'word'
+                 parts = line.split(':')
+                 if len(parts) > 1:
+                     value_part = parts[1].split()[0] # Take the first word after the colon
+                     try:
+                         return float(value_part)
+                     except ValueError:
+                         # Value might be a string (like 'LG'), which is okay for this check
+                         return value_part
+        
+        print(f'Parameter "{param}" not found.')
+        return None
+
+def GetInitNumAtoms(simul_path: str):
+    N = GetParam(simul_path, param='N_atoms (N)')
+    return N
+
+def Get_Power(simul_path: str):
+    P = GetParam(simul_path, param='Power') # W
+    return P
+
+def Get_Lambda(simul_path: str):
+    lambda_b = GetParam(simul_path, param='Lambda_b') # nm
+    return lambda_b*1e-9
+
+def Get_Waist(simul_path: str):
+    lambda_b = GetParam(simul_path, param='w0_b') # um
+    return lambda_b*1e-6
+
+def Get_Beam_Name(simul_path: str):
+    name = GetParam(simul_path, param='Beam_name')
+    return name
+
+def Get_Beam(simul_path: str):
+
+    beam_name = Get_Beam_Name(simul_path)
+    P_b = Get_Power(simul_path)
+    Lambda_b = Get_Lambda(simul_path)
+    w0_b = Get_Waist(simul_path)
+
+    beam = beams[beam_name]
+    beam.Set_Power(P_b)
+    beam.Set_Lambda(Lambda_b)
+    beam.Set_w0(w0_b)
+    beam.update_props()
+
+    beam.Set_Power(P_b)
+    beam.update_props()
+
+    return beam
+
+def compute_NMOT(N, R_cil):
     """
     Compute the effective number of atoms in the cylindrical fiber volume.
 
@@ -25,6 +188,10 @@ def compute_NMOT(N):
     ----------
     N : int
         Total number of atoms in the MOT.
+    h_cil : float
+        Height of the cilynder
+    R_cil : float
+        Radius of the cilynder
 
     Returns
     -------
@@ -35,23 +202,59 @@ def compute_NMOT(N):
     -----
     - Uses global constants:
         * VMOT : volume of the MOT sphere
-        * V_cil : effective cylindrical fiber volume
     - Formula:
         NMOT = N * VMOT / V_cil
     """
+    
+    V_cil = 2 * RMOT * np.pi*R_cil**2
+
     return N * VMOT / V_cil
 
+def get_frac(simul_path: str, steps: np.ndarray):
+    """
+    Compute fraction of captured atoms vs at time step.
 
-def capt_atoms_vs_t(T, dMOT, beam=GaussianBeam(), middle_folder='', fname=''):
+    Parameters
+    ----------
+    simul_path: str
+        Path to simulation folder.
+    steps: np.ndarray
+        Numpy array of the steps for which atom fraction is needed.
+
+    Returns
+    -------
+    f_cap : ndarray
+        Fraction of captured atoms at step.
+
+    Notes
+    -----
+    An atom is considered captured if:
+    - ζ <= 0 (at or below fiber tip),
+    - |ρ| < R_trap / w0 (within fiber mode radius).
+    """
+
+    xs = np.load(simul_path + pos_fname, allow_pickle=True)
+    r_cap = R_trap / w0 # trap radius in units of w0
+    n_cap = np.sum((xs[steps, 1, :] <= 0) & (np.abs(xs[steps, 0, :]) < r_cap), axis=1)
+
+    N = GetInitNumAtoms(simul_path)
+    R_cil = np.max(xs[0, 0, :]) * w0
+    NMOT = compute_NMOT(N, R_cil)
+
+    f_cap = n_cap / NMOT
+    if len(f_cap) > 1:
+        return f_cap
+    else:
+        return f_cap[0]
+
+def capt_frac_vs_t(simul_path: str):
     """
     Compute fraction of captured atoms vs time.
 
     Parameters
     ----------
-    T : float
-        MOT temperature [µK].
-    dMOT : float
-        MOT–fiber distance [mm].
+    simul_path: str
+        Path to simulation folder.
 
     Returns
     -------
@@ -67,67 +270,23 @@ def capt_atoms_vs_t(T, dMOT, beam=GaussianBeam(), middle_folder='', fname=''):
     - |ρ| < R_trap / w0 (within fiber mode radius).
     """
 
-    res_folder = data_folder + data_fname(T, dMOT, beam, middle_folder, fname)
+    ts = np.load(simul_path + time_fname, allow_pickle=True)
+    steps = np.arange(0, len(ts), 1, dtype=int)
 
-    if os.path.exists(res_folder):
-        try:
-            xs = np.load(res_folder + pos_fname)
-            ts = np.load(res_folder + time_fname)
+    f_cap = get_frac(simul_path, steps)
 
-            r_cap = R_trap / w0 # trap radius in units of w0
-            n_cap = np.sum((xs[:, 1, :] <= 0) & (np.abs(xs[:, 0, :]) < r_cap), axis=1)
+    return ts, f_cap
 
-            N = len(xs[0, 0, :])
-            NMOT = compute_NMOT(N)
-
-            return ts, n_cap / NMOT
-        
-        except Exception as err:
-            print(f"Error: {err=}, {type(err)=}")
-            exit()
-    else:
-        print(f'No simualtion was run with T={T}uK and dMOT={dMOT}mm')
-        exit()
-
-def get_last_conc(T, dMOT, beam=GaussianBeam(), middle_folder='', fname=''):
-    """
-    Compute the final fraction of atoms captured at the fiber.
-
-    Parameters
-    ----------
-    T : float
-        MOT temperature [µK].
-    dMOT : float
-        MOT–fiber distance [mm].
-
-    Returns
-    -------
-    last_conc : float
-        Fraction of atoms captured at the final simulation step.
-
-    Notes
-    -----
-    - Uses `capt_atoms_vs_t` to compute the time evolution of the captured fraction.
-    - Returns the last value of the capture fraction array.
-    - The result is normalized by the effective number of atoms inside the fiber volume.
-    """
-    _, conc = capt_atoms_vs_t(T, dMOT, beam, middle_folder, fname)
-    last_conc = conc[-1]
-    return last_conc
-
-
-def density_at_fib(step, T, dMOT, beam=GaussianBeam()):
+def density_at_fib(simul_path, step: int):
     """
     Compute radial density distribution of atoms at the fiber.
 
     Parameters
     ----------
+    simul_path: str
+        Path to simulation folder.
     step : int
         Time step index (-1 for final distribution).
-    T : float
-        MOT temperature [µK].
-    dMOT : float
-        MOT–fiber distance [mm].
 
     Returns
     -------
@@ -137,54 +296,42 @@ def density_at_fib(step, T, dMOT, beam=GaussianBeam()):
         Histogram (counts, bins) for initial MOT distribution.
     """
 
-    res_folder = data_folder + data_fname(T, dMOT, beam)
+    xs = np.load(simul_path + pos_fname, allow_pickle=True)
+    
+    rho_step = xs[step, 0, :]
+    zeta_step = xs[step, 1, :]
+    index_at_fib = zeta_step <= 0
 
-    if os.path.exists(res_folder):
-        try:
-            xs = np.load(res_folder + pos_fname)
-            
-            rho_step = xs[step, 0, :]
-            zeta_step = xs[step, 1, :]
-            index_at_fib = zeta_step <= 0
+    rho_at_fib = rho_step[index_at_fib]
+    N_at_fib = len(rho_at_fib)
 
-            rho_at_fib = rho_step[index_at_fib]
-            N_at_fib = len(rho_at_fib)
+    rho_init = xs[0, 0, :]
+    N_init = len(rho_init)
 
-            rho_init = xs[0, 0, :]
-            N_init = len(rho_init)
+    rho_max = 15
+    
+    rho_init = rho_init[(np.abs(rho_init) < rho_max)]
+    rho_at_fib = rho_at_fib[(np.abs(rho_at_fib) < rho_max)]
 
-            rho_max = 15
-            
-            rho_init = rho_init[(np.abs(rho_init) < rho_max)]
-            rho_at_fib = rho_at_fib[(np.abs(rho_at_fib) < rho_max)]
+    if len(rho_at_fib) > 0:
+        hist_rho_step = np.histogram(rho_at_fib, int(np.sqrt(N_at_fib)), density=True)
+        hist_rho_init = np.histogram(rho_init, int(np.sqrt(N_init)), density=True)
 
-            if len(rho_at_fib) > 0:
-                hist_rho_step = np.histogram(rho_at_fib, int(np.sqrt(N_at_fib)), density=True)
-                hist_rho_init = np.histogram(rho_init, int(np.sqrt(N_init)), density=True)
-
-                return hist_rho_step, hist_rho_init
-            else:
-                return None, None
-            
-        except Exception as err:
-            print(f"Error: {err=}, {type(err)=}")
-            exit()
+        return hist_rho_step, hist_rho_init
     else:
-        print(f'No simualtion was run with T={T}uK and dMOT={dMOT}mm')
-        exit()
+        return None, None
 
-def z_density(step, T, dMOT, beam=GaussianBeam()):
+
+def z_density(simul_path, step: int):
     """
     Compute axial density distribution of atoms at a given step.
 
     Parameters
     ----------
+    simul_path: str
+        Path to simulation folder.
     step : int
         Time step index (-1 for final distribution).
-    T : float
-        MOT temperature [µK].
-    dMOT : float
-        MOT–fiber distance [mm].
 
     Returns
     -------
@@ -193,29 +340,17 @@ def z_density(step, T, dMOT, beam=GaussianBeam()):
     hist_zeta_init : tuple
         Histogram (counts, bins) for initial MOT distribution.
     """
+    xs = np.load(simul_path + pos_fname, allow_pickle=True)
+    
+    zeta_step = xs[step, 1, :]
+    zeta_init = xs[0, 1, :]
 
-    res_folder = data_folder + data_fname(T, dMOT, beam)
+    hist_zeta_step = np.histogram(zeta_step, int(np.sqrt(len(zeta_step))), density=True)
+    hist_zeta_init = np.histogram(zeta_init, int(np.sqrt(len(zeta_init))), density=True)
+    
+    return hist_zeta_step, hist_zeta_init
 
-    if os.path.exists(res_folder):
-        try:
-            xs = np.load(res_folder + pos_fname)
-            
-            zeta_step = xs[step, 1, :]
-            zeta_init = xs[0, 1, :]
-
-            hist_zeta_step = np.histogram(zeta_step, int(np.sqrt(len(zeta_step))), density=True)
-            hist_zeta_init = np.histogram(zeta_init, int(np.sqrt(len(zeta_init))), density=True)
-            
-            return hist_zeta_step, hist_zeta_init
-        
-        except Exception as err:
-            print(f"Error: {err=}, {type(err)=}")
-            exit()
-    else:
-        print(f'No simualtion was run with T={T}uK and dMOT={dMOT}mm')
-        exit()
-
-def density(T, dMOT, beam, rho_min: float, rho_max: float, 
+def density(simul_path, rho_min: float, rho_max: float, 
             zeta_min: float, zeta_max: float, step=-1):
 
 
@@ -224,10 +359,8 @@ def density(T, dMOT, beam, rho_min: float, rho_max: float,
 
     Parameters
     ----------
-    T : float
-        Temperature of the simulation in microkelvin (uK).
-    dMOT : float
-        MOT displacement in millimeters (mm).
+    simul_path: str
+        Path to simulation folder.
     rho_min : float
         Minimum value of the radial coordinate (rho) for the histogram.
     rho_max : float
@@ -255,23 +388,13 @@ def density(T, dMOT, beam, rho_min: float, rho_max: float,
     If the folder or file does not exist, the function exits.
     """
 
-    res_folder = data_folder + data_fname(T, dMOT, beam)
-
-    if os.path.exists(res_folder):
-        try:
-            xs = np.load(res_folder + pos_fname)
-            rho_atoms = xs[step, 0, :]
-            zeta_atoms = xs[step, 1, :]
-        except Exception as err:
-            print(f"Error: {err=}, {type(err)=}")
-            exit()
-    else:
-        print(f'No simulation was run with T={T}uK and dMOT={dMOT}mm')
-        exit()
+    xs = np.load(simul_path + pos_fname, allow_pickle=True)
+    rho_atoms = xs[step, 0, :]
+    zeta_atoms = xs[step, 1, :]
 
     # Define bin edges
-    rho_array = np.linspace(rho_min, rho_max, 301)  # 100 bins
-    zeta_array = np.linspace(zeta_min, zeta_max, 301)
+    rho_array = np.linspace(rho_min, rho_max, 101)  # 100 bins
+    zeta_array = np.linspace(zeta_min, zeta_max, 101)
 
     # Compute 2D histogram (counts in each bin)
     n, rho_edges, zeta_edges = np.histogram2d(
@@ -284,42 +407,13 @@ def density(T, dMOT, beam, rho_min: float, rho_max: float,
 
     return n.T, rho_centers, zeta_centers
 
-def GetPower(T, dMOT, beam):
+def GetTemp_arrays(simul_path):
 
-    res_folder = data_folder + data_fname(T, dMOT, beam)
+    beam_simul = Get_Beam(simul_path)
 
-    with open(res_folder + 'parameters.txt', 'r') as file:
-        lines = file.readlines()
-        for line in lines:
-            line_frags = line.split(sep=' ')
-            if line_frags[0] == 'Power:':
-                pw = float(line_frags[1])
-                return pw
-        else:
-            print('Power not found')
-
-def GetTemp_arrays(T, dMOT, beam=GaussianBeam()):
-
-    res_folder = data_folder + data_fname(T, dMOT, beam)
-
-    if os.path.exists(res_folder):
-        try:
-            ts = np.load(res_folder + time_fname)
-            xs = np.load(res_folder + pos_fname)
-            vs = np.load(res_folder + vel_fname)
-            P_simul = GetPower(T, dMOT, beam)
-
-            if beam.name == 'Gauss':
-                beam_simul = GaussianBeam(P_simul)
-            elif beam.name == 'LG':
-                beam_simul = LGBeamL1(P_simul)
-
-        except Exception as err:
-            print(f"Error: {err=}, {type(err)=}")
-            exit()
-    else:
-        print(f'No simulation was run with T={T}uK and dMOT={dMOT}mm')
-        exit()
+    ts = np.load(simul_path + time_fname, allow_pickle=True)
+    xs = np.load(simul_path + pos_fname, allow_pickle=True)
+    vs = np.load(simul_path + vel_fname, allow_pickle=True)
     
     rho = xs[:, 0, :]
     zeta = xs[:, 1, :]
@@ -350,22 +444,26 @@ def GetTemp_arrays(T, dMOT, beam=GaussianBeam()):
     return np.array(valid_times), np.array(T_rho_list), np.array(T_zeta_list)
     
 
-def plot_cap_frac(ts, f_cap, beam=GaussianBeam(), label='Fraction Captured', color='royalblue'):
+def plot_cap_frac(simul_path: str, label='Fraction Captured', color='royalblue'):
     """
     Plot fraction of captured atoms vs time.
 
     Parameters
     ----------
-    ts : ndarray
-        Time points (dimensionless).
-    f_cap : ndarray
-        Fraction of captured atoms.
+    simul_path: str
+        Path to simulation folder.
     label : str
         Plot label.
     color : str
         Curve color.
     """
 
+    beam = Get_Beam(simul_path)
+    
+    ts = LoadTime(simul_path)
+    steps = np.arange(0, len(ts), 1)
+
+    f_cap = get_frac(simul_path, steps)
     plt.plot(ts * beam.tau * 1e3, f_cap*100, label=label, color=color)
     plt.title('Fraction of atoms captured at the fiber')
     plt.xlabel(r'Time (ms)')
@@ -430,7 +528,10 @@ def plot_density_at_fib(hist_rho_step, label='Distribution at the fiber', color=
     plt.xlim(-15, 15)
     plt.legend()
 
-def plot_initial_density_zeta(hist_zeta_init, beam=GaussianBeam()):
+def plot_initial_density_zeta(simul_path: str, hist_zeta_init):
+
+    beam = Get_Beam(simul_path)
+
     counts, bin_edges = hist_zeta_init
 
     bin_edges_mm = bin_edges * beam.zR * 1e3
@@ -449,7 +550,10 @@ def plot_initial_density_zeta(hist_zeta_init, beam=GaussianBeam()):
     plt.legend()
 
 
-def plot_density_zeta(hist_zeta_step, beam=GaussianBeam(), label='Distribution of axial positions', color='red'):
+def plot_density_zeta(simul_path: str, hist_zeta_step, label='Distribution of axial positions', color='red'):
+
+    beam = Get_Beam(simul_path)
+
     counts, bin_edges = hist_zeta_step
 
     bin_edges_mm = bin_edges * beam.zR * 1e3
@@ -467,20 +571,27 @@ def plot_density_zeta(hist_zeta_step, beam=GaussianBeam(), label='Distribution o
     plt.legend()
 
 
-def plot_density_zeta_vs_t(steps, T, dMOT, beam=GaussianBeam()):
-    from matplotlib import colormaps
+def plot_density_zeta_vs_t(simul_path: str):
+    
+    ts = LoadTime(simul_path)
+    Nt = len(ts)
+    steps = np.linspace(0, Nt//2, 5, dtype=int)
+
+    beam = Get_Beam(simul_path)
+
     cmap = colormaps.get_cmap('inferno')
-    colors = [cmap(x) for x in np.linspace(0.1, 0.8, len(steps))]
+    colors = [cmap(x) for x in np.linspace(0.1, 0.8, len(steps))]  # <- here
 
     # Compute initial distribution
-    _, hist_zeta_init = z_density(steps[0], T, dMOT, beam)
+    _, hist_zeta_init = z_density(simul_path, steps[0])
     z_max = np.max(hist_zeta_init[1] * beam.zR * 1e3)
     print(f"Max z (mm): {z_max:.3f}")
 
     for i, step in enumerate(steps):
-        hist_zeta_step, _ = z_density(step, T, dMOT, beam)
+        hist_zeta_step, _ = z_density(simul_path, step)
         plot_density_zeta(
-            hist_zeta_step, beam=beam,
+            simul_path,
+            hist_zeta_step,
             label=f't = {step * DT_save * 1e3:.2f} ms',
             color=colors[i]
         )
@@ -488,7 +599,7 @@ def plot_density_zeta_vs_t(steps, T, dMOT, beam=GaussianBeam()):
     plt.title('Axial position distribution at different times')
 
 
-def plot_density_rho_vs_t(steps: list, T, dMOT, beam=GaussianBeam()):
+def plot_density_rho_vs_t(simul_path: str, steps: list):
     """
     Plot axial distribution at given steps.
 
@@ -502,18 +613,19 @@ def plot_density_rho_vs_t(steps: list, T, dMOT, beam=GaussianBeam()):
         MOT–fiber distance [mm].
     """
 
-    from matplotlib import colormaps
+    beam = Get_Beam(simul_path)
+
     cmap = colormaps.get_cmap('inferno')
     colors = [cmap(x) for x in np.linspace(0.1, 0.8, len(steps))]
 
     for i, step in enumerate(steps):
-        hist_rho_step, _ = density_at_fib(step, T, dMOT, beam)
+        hist_rho_step, _ = density_at_fib(simul_path, step)
         plot_density_at_fib(hist_rho_step, label=f'step = {step}', color=colors[i])
 
     plt.title('Distribution of atoms at fiber at different times')
     plt.xlim(-200*w0, 200*w0)
 
-def plot_density(n, rho_array, zeta_array, beam=GaussianBeam()):
+def plot_density(simul_path: str, n, rho_array, zeta_array):
     
     """
     Plot a 2D density contour of atomic distribution.
@@ -539,8 +651,10 @@ def plot_density(n, rho_array, zeta_array, beam=GaussianBeam()):
     filled contour plot with 50 levels and a 'viridis' colormap.
     """
     
+    beam = Get_Beam(simul_path)
+
     # atomic density contour
-    R, Z = np.meshgrid(rho_array * w0 * 1e3, zeta_array * beam.zR * 1e3)
+    R, Z = np.meshgrid(rho_array * beam.w0_b * 1e3, zeta_array * beam.zR * 1e3)
 
     fig, ax = plt.subplots(figsize=(8,6))
 
@@ -549,7 +663,7 @@ def plot_density(n, rho_array, zeta_array, beam=GaussianBeam()):
     fig.colorbar(cp, ax=ax, label="Atomic Density")
 
     # beam intensity (normalized)
-    rho_dim = R / (w0 * 1e3)
+    rho_dim = R / (beam.w0_b * 1e3)
     zeta_dim = Z / (beam.zR * 1e3)
     I = beam.intensity(rho_dim, zeta_dim)
     I = I / I.max()
@@ -558,7 +672,7 @@ def plot_density(n, rho_array, zeta_array, beam=GaussianBeam()):
     cmap = plt.cm.inferno
     cf = ax.contourf(R, Z, I, levels=50, cmap=cmap, alpha=0.1)
 
-    ax.set_title(f'Atom and Intesity distribution ({beam.name})')
+    ax.set_title(f'Atom and Intesity distribution ({beam_name})')
     ax.set_xlabel(r'$\rho$ (mm)')
     ax.set_ylabel('z (mm)')
 
@@ -567,9 +681,9 @@ def plot_density(n, rho_array, zeta_array, beam=GaussianBeam()):
     sm.set_array([])  
     fig.colorbar(sm, ax=ax, label="Beam intensity")
 
-def plot_capfrac_vs_P(beam=GaussianBeam()):
+def plot_capfrac_vs_P(beam_name: str):
 
-    folder_path = f"Results/{beam.name}/Different_Powers"
+    folder_path = f"Results/{beam_name}/Different_Powers"
 
     files = os.listdir(folder_path)
 
@@ -581,18 +695,19 @@ def plot_capfrac_vs_P(beam=GaussianBeam()):
         if match:
             pw = float(match.group())
             powers.append(pw)
-            cp_fracs.append(get_last_conc(T=15, dMOT=7, beam=beam, middle_folder="Different_Powers", fname=file)*100)
+            cp_fracs.append(get_frac(T=15, dMOT=7, beam=beam, step=-1, middle_folder="Different_Powers", fname=file)*100)
 
-    if beam.name == 'Gauss':
+    if beam_name == 'Gauss':
         wl = '1064 nm'
-    elif beam.name == 'LG':
+    elif beam_name == 'LG':
         wl = '650 nm'
-    plt.semilogx(powers, cp_fracs, '--o', label=beam.name + f' {wl}') 
+    plt.semilogx(powers, cp_fracs, '--o', label=beam_name + f' {wl}') 
 
-def plot_temperature(T, dMOT, beam):
+def plot_temperature(simul_path: str):
 
-    ts, T_rho, T_zeta = GetTemp_arrays(T, dMOT, beam)
-
+    ts, T_rho, T_zeta = GetTemp_arrays(simul_path)
+    beam = Get_Beam(simul_path)
+    
     plt.semilogy(ts * beam.tau * 1e3, T_rho * 1e6, 'o--', label='Radial Temp.')
     plt.semilogy(ts * beam.tau * 1e3, T_zeta * 1e6, 'o--', label='Axial Temp.')
     plt.xlabel('Time (ms)')
@@ -601,41 +716,32 @@ def plot_temperature(T, dMOT, beam):
     plt.grid()
     plt.legend()
 
-def CreateGif_desnity(T: float, dMOT: float, beam=GaussianBeam(), middle_folder='', fname=''):
+def CreateGif_desnity(T: float, dMOT: float, beam: Beam, middle_folder='', fname=''):
 
-    res_folder = data_folder + data_fname(T, dMOT, beam, middle_folder, fname)
+    simul_path = data_fname(T, dMOT, beam.name, middle_folder, fname)
 
-    if os.path.exists(res_folder):
-        try:
-            xs= np.load(res_folder + pos_fname)
-            z_max = np.max(xs[:, 1, :])
-            n_list = []
-            rho_list = []
-            zeta_list = []
+    xs= LoadPosition(simul_path)
+    z_max = np.max(xs[:, 1, :])
+    n_list = []
+    rho_list = []
+    zeta_list = []
 
-            for i in range(len(xs)):
-                n, rho_array, zeta_array = density(T, dMOT, beam=beam, rho_min=-1.5*RMOT/w0, rho_max=1.5*RMOT/w0, zeta_min=0, zeta_max=z_max, step=i)
-                n_list.append(n)
-                rho_list.append(rho_array)
-                zeta_list.append(zeta_array)
+    for i in range(len(xs)):
+        n, rho_array, zeta_array = density(simul_path, rho_min=-1.5*RMOT/w0, rho_max=1.5*RMOT/w0, zeta_min=0, zeta_max=z_max, step=i)
+        n_list.append(n)
+        rho_list.append(rho_array)
+        zeta_list.append(zeta_array)
 
-            rho_array = np.array(rho_list)
-            zeta_array = np.array(zeta_list)
-            n_array = np.array(n_list)
+    rho_array = np.array(rho_list)
+    zeta_array = np.array(zeta_list)
+    n_array = np.array(n_list)
 
-            print(f'Creating GIF for T = {T} uK, dMOT = {dMOT} mm, Beam = {beam.name}')
-            print('rho_array: ', rho_array.shape)
-            print('zeta_array: ', zeta_array.shape)
-            print('n_array: ', n_array.shape)
+    print(f'Creating GIF for T = {T} uK, dMOT = {dMOT} mm, Beam = {beam_name}')
+    print('rho_array: ', rho_array.shape)
+    print('zeta_array: ', zeta_array.shape)
+    print('n_array: ', n_array.shape)
 
-            MakeGif_density(pos=np.array([rho_array, zeta_array]), density=n_array, beam=beam, file_name=f'density_gif_T={T}uK_dMOT={dMOT}mm_Beam={beam.name}')
-
-        except Exception as err:
-            print(f"Error: {err=}, {type(err)=}")
-            exit()
-    else:
-        print(f'No simualtion was run with T={T}uK and dMOT={dMOT}mm')
-        exit()
+    MakeGif_density(pos=np.array([rho_array, zeta_array]), density=n_array, beam=beam, file_name=f'density_gif_T={T}uK_dMOT={dMOT}mm_Beam={beam_name}')
 
 if __name__ == '__main__':
 
@@ -645,44 +751,52 @@ if __name__ == '__main__':
         print('Specify T, dMOT, Beam (Gauss or LG)')
         exit()
 
-    T = int(argv[1])
-    dMOT = int(argv[2])
-    beam = str(argv[3])
+    try:
+        T = int(argv[1])
+        dMOT = int(argv[2])
+        beam_name = str(argv[3])
+        Heating = bool(argv[4])
 
-    print(f'T = {T} uK, dMOT = {dMOT} mm, beam = {beam}')
+        print(f'T = {T} uK, dMOT = {dMOT} mm, beam = {beam_name}, Heating = {Heating}\n')
 
-    for b in BEAMS:
-        if b.name == beam:
-            chosen_beam = b
+        simul_path = data_fname(T, dMOT, beam_name)
+        if Heating:
+            simul_path = data_fname(T, dMOT, beam_name, 'Heating')
 
-    ts, f_cap = capt_atoms_vs_t(T, dMOT, beam=chosen_beam)
-    plot_cap_frac(ts, f_cap)
-    plt.show()
+        plot_cap_frac(simul_path)
+        plt.show()
 
-    hist_rho_step, hist_rho_init = density_at_fib(step=-1, T=T, dMOT=dMOT, beam=chosen_beam)
-    plot_initial_density_rho(hist_rho_init)
-    plot_density_at_fib(hist_rho_step=hist_rho_step)
-    plt.show()
+        hist_rho_step, hist_rho_init = density_at_fib(simul_path, step=-1)
+        plot_initial_density_rho(hist_rho_init)
+        plot_density_at_fib(hist_rho_step=hist_rho_step)
+        plt.show()
 
-    plot_density_zeta_vs_t([0, 3, 5, 7, 9, 10, 11], T, dMOT, beam=chosen_beam)
-    plt.show()
+        plot_density_zeta_vs_t(simul_path)
+        plt.ylim(0, 1)
+        plt.show()
 
-    print(f'Percentage of atoms at the fiber: {get_last_conc(T, dMOT, chosen_beam)*100:.2f} %')
+        steps=np.array([-1])
+        f_cap = get_frac(simul_path, steps)*100 # %
+        print(f'Percentage of atoms at the fiber: {f_cap:.2f} %')
 
-    n, rho_array, zeta_array = density(T, dMOT, beam=chosen_beam, rho_min=-1.5*RMOT/w0, rho_max=1.5*RMOT/w0, zeta_min=0, zeta_max=5, step=11)
-    plot_density(n, rho_array, zeta_array, beam=chosen_beam)
-    plt.show()
+        Nt = len(LoadTime(simul_path))
+        n, rho_array, zeta_array = density(simul_path, rho_min=-1.5*RMOT/w0, rho_max=1.5*RMOT/w0, zeta_min=0, zeta_max=5, step=int(Nt/3))
+        plot_density(simul_path, n, rho_array, zeta_array)
+        plt.show()
 
-    # plot_capfrac_vs_P(beam=GaussianBeam())
-    # plot_capfrac_vs_P(beam=LGBeamL1())
-    # plt.xlabel("Power (W)")
-    # plt.ylabel("Final Captured Fraction (%)")
-    # plt.title("Captured fraction vs Trapping PW")
-    # plt.legend()
-    # plt.grid()
-    # plt.show()
+        # plot_capfrac_vs_P(beam_name: str)
+        # plot_capfrac_vs_P(beam=LGBeamL1())
+        # plt.xlabel("Power (W)")
+        # plt.ylabel("Final Captured Fraction (%)")
+        # plt.title("Captured fraction vs Trapping PW")
+        # plt.legend()
+        # plt.grid()
+        # plt.show()
 
-    # plot_temperature(T, dMOT, chosen_beam)
-    # plt.show()
+        # plot_temperature(T, dMOT, chosen_beam)
+        # plt.show()
 
-    CreateGif_desnity(T, dMOT, chosen_beam)
+        beam = Get_Beam(simul_path)
+        CreateGif_desnity(T, dMOT, beam)
+    except Exception as e:
+        print(e)
