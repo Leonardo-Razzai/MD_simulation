@@ -17,5 +17,5 @@ Heating=$5
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 # running
 source /home/software/materia/intel/oneapi/setvars.sh --force
-module load materia/qe/7.1_intel-oneapi
+module load python3.10
 mpirun -np 56 python3 simulation.py $T $dMOT $Beam $P_b $Heating
