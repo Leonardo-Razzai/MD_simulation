@@ -2,8 +2,8 @@
 #SBATCH --time=00:00:05
 #SBATCH --nodes=1
 #SBATCH --mem=2G
-#SBATCH --ntasks-per-node=56
-#SBATCH --sockets-per-node=2
+#SBATCH --ntasks-per-node=1
+#SBATCH --sockets-per-node=1
 #SBATCH --partition=m1,m2,m3
 #SBATCH --job-name=md_simul
 #SBATCH --output=JOB.o
