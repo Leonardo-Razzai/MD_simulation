@@ -112,7 +112,6 @@ def GetParam(simul_path: str, param: str):
     
     pattern = rf'({escaped_param}).*?:?\s*([+-]?\d+\.?\d*(?:[Ee][+-]?\d+)?)'
 
-    simul_path = data_fname(T, dMOT, beam_name)
     file_content = get_file_content(simul_path + 'parameters.txt')
 
     match = re.search(pattern, file_content, re.IGNORECASE)
@@ -623,7 +622,7 @@ def plot_density_rho_vs_t(simul_path: str, steps: list):
         plot_density_at_fib(hist_rho_step, label=f'step = {step}', color=colors[i])
 
     plt.title('Distribution of atoms at fiber at different times')
-    plt.xlim(-200*w0, 200*w0)
+    plt.xlim(-200*beam.w0_b, 200*beam.w0_b)
 
 def plot_density(simul_path: str, n, rho_array, zeta_array):
     
@@ -683,24 +682,25 @@ def plot_density(simul_path: str, n, rho_array, zeta_array):
 
 def plot_capfrac_vs_P(beam_name: str):
 
-    folder_path = f"Results/{beam_name}/Different_Powers"
+    folder_path = f"Results/{beam_name}/Different_Powers/"
 
     files = os.listdir(folder_path)
 
     powers = []
     cp_fracs = []
+
     for file in files:
-    
-        match = re.search(r"\d+\.\d+", file)
-        if match:
-            pw = float(match.group())
-            powers.append(pw)
-            cp_fracs.append(get_frac(T=15, dMOT=7, beam=beam, step=-1, middle_folder="Different_Powers", fname=file)*100)
+        simul_path = folder_path + file + '/'
+        pw = Get_Power(simul_path)
+        powers.append(pw)
+        cp_fracs.append(get_frac(simul_path, steps=np.array([-1]))*100)
 
     if beam_name == 'Gauss':
         wl = '1064 nm'
     elif beam_name == 'LG':
         wl = '650 nm'
+
+    print(powers)
     plt.semilogx(powers, cp_fracs, '--o', label=beam_name + f' {wl}') 
 
 def plot_temperature(simul_path: str):
@@ -716,9 +716,9 @@ def plot_temperature(simul_path: str):
     plt.grid()
     plt.legend()
 
-def CreateGif_desnity(T: float, dMOT: float, beam: Beam, middle_folder='', fname=''):
+def CreateGif_desnity(T: float, dMOT: float, beam: Beam, middle_folder=''):
 
-    simul_path = data_fname(T, dMOT, beam.name, middle_folder, fname)
+    simul_path = data_fname(T, dMOT, beam.name, middle_folder)
 
     xs= LoadPosition(simul_path)
     z_max = np.max(xs[:, 1, :])
@@ -747,7 +747,7 @@ if __name__ == '__main__':
 
     from sys import argv
 
-    if len(argv) < 3:
+    if len(argv) < 4:
         print('Specify T, dMOT, Beam (Gauss or LG)')
         exit()
 
@@ -755,7 +755,10 @@ if __name__ == '__main__':
         T = int(argv[1])
         dMOT = int(argv[2])
         beam_name = str(argv[3])
-        Heating = bool(argv[4])
+        Heating = False
+
+        if len(argv) == 5:
+            Heating = bool(argv[4])
 
         print(f'T = {T} uK, dMOT = {dMOT} mm, beam = {beam_name}, Heating = {Heating}\n')
 
@@ -784,19 +787,19 @@ if __name__ == '__main__':
         plot_density(simul_path, n, rho_array, zeta_array)
         plt.show()
 
-        # plot_capfrac_vs_P(beam_name: str)
-        # plot_capfrac_vs_P(beam=LGBeamL1())
-        # plt.xlabel("Power (W)")
-        # plt.ylabel("Final Captured Fraction (%)")
-        # plt.title("Captured fraction vs Trapping PW")
-        # plt.legend()
-        # plt.grid()
-        # plt.show()
+        plot_capfrac_vs_P(beam_name)
+        plt.xlabel("Power (W)")
+        plt.ylabel("Final Captured Fraction (%)")
+        plt.title("Captured fraction vs Trapping PW")
+        plt.legend()
+        plt.grid()
+        plt.show()
 
-        # plot_temperature(T, dMOT, chosen_beam)
-        # plt.show()
+        plot_temperature(simul_path)
+        plt.show()
 
-        beam = Get_Beam(simul_path)
-        CreateGif_desnity(T, dMOT, beam)
+        # beam = Get_Beam(simul_path)
+        # CreateGif_desnity(T, dMOT, beam)
+
     except Exception as e:
         print(e)
