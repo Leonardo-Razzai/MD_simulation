@@ -2,7 +2,6 @@ from Dynamics import *
 from Verlet import *
 import numpy as np
 import os
-import sys
 from Beams import GaussianBeam, LGBeamL1
 
 # MOT characteristics
@@ -22,7 +21,7 @@ GaussBeam_Lambda = 1064e-9 # m
 LGBeam_Lambda = 772e-9 # m
 
 # FLAGS
-Diff_Powers = False
+Diff_Powers = True
 
 def print_simulation_parameters(
     N, T, dMOT, RMOT,
@@ -162,6 +161,7 @@ def simulation(N=int(1e5), T=15, dMOT=5, beam=GaussianBeam(), HEATING=False):
     T = T * 1e-6 # K
     dMOT = dMOT * 1e-3 # m
 
+    beam_name = beam.name
     zR = beam.zR
     vs_rho = beam.vs_rho
     vs_zeta = beam.vs_zeta
@@ -207,11 +207,11 @@ def simulation(N=int(1e5), T=15, dMOT=5, beam=GaussianBeam(), HEATING=False):
     res = verlet(x0=xres, v0=vres, a_func=beam.acc, dt=dt, steps=N_steps, HEATING=HEATING)
 
     # Save data and parameters
-    save_data(res, 
-        N, T, dMOT, RMOT, # MOT params
-        beam_name, beam.P_b, beam.lambda_b, beam.w0_b, HEATING, # Beam params
-        w0, zR, tau, # length and time scales
-        rho_max, zeta_min, zeta_max, # max/min position values
+    save_data(res=res, 
+        N=N, T=T, dMOT=dMOT, RMOT=RMOT, # MOT params
+        beam_name=beam_name, P_b=beam.P_b, HEATING=HEATING, # Beam params
+        w0=beam.w0_b, zR=beam.zR, tau=beam.tau, # length and time scales
+        rho_max=rho_max, zeta_min=zeta_min, zeta_max=zeta_max, # max/min position values
         t_max=T_MAX, dt=dt, N_steps=N_steps # time steps
     )
 
@@ -221,7 +221,7 @@ def evolve_up_to(x0, v0, acc, dt, N_steps, z_min=5, HEATING=False):
 
 def save_data(res, 
     N: int, T: float, dMOT: float, RMOT: float, # MOT params
-    beam_name: str, P_b: float, lambda_b: float, w0_b: float, HEATING: bool, # Beam params
+    beam_name: str, P_b: float, HEATING: bool, # Beam params
     w0: float, zR: float, tau: float, # length and time scales
     rho_max: float, zeta_min: float, zeta_max: float, # max/min position values
     t_max: float, dt: float, N_steps: int # time steps
@@ -253,8 +253,9 @@ def save_data(res,
         small_res = res[i]
         small_res = small_res[idx]
         np.save(res_folder + f_names[i], small_res)
-
+    
     # Save parameters in a human-readable text file
+    beam = beams[beam_name]
     write_params_to_file(res_folder,
                          N, T, dMOT, RMOT,
                          beam_name, P_b, beam.lambda_b, beam.w0_b, HEATING,
