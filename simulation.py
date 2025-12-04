@@ -129,7 +129,14 @@ def write_params_to_file(
 
         f.write("\n==============================\n")
 
-def simulation(N=int(1e5), T=15, dMOT=5, beam=GaussianBeam(), HEATING=False):
+def simulation(
+    N=int(1e5),
+    T=15,
+    dMOT=5,
+    beam=GaussianBeam(),
+    HEATING=False,
+):
+    
     """
     Run a full atom trajectory simulation.
 
@@ -203,9 +210,28 @@ def simulation(N=int(1e5), T=15, dMOT=5, beam=GaussianBeam(), HEATING=False):
             beam_name=beam_name, P_b=P_b, lambda_b=beam.lambda_b, w0_b=beam.w0_b
         )
 
-    xres, vres = evolve_up_to(x0=x0, v0=v0, acc=beam.acc, dt=dt, N_steps=N_steps, z_min=10, HEATING=HEATING)
-    res = verlet(x0=xres, v0=vres, a_func=beam.acc, dt=dt, steps=N_steps, HEATING=HEATING)
+    # # First stage: same as before (Python evolve_up_to)
+    x_prepared, v_prepared = evolve_up_to(
+        x0=x0,
+        v0=v0,
+        acc=beam.acc,
+        dt=dt,
+        N_steps=N_steps,
+        z_min=10,
+        HEATING=HEATING
+    )
 
+    res = verlet(
+        x0=x_prepared,
+        v0=v_prepared,
+        a_func=beam.acc,
+        dt=dt,
+        N_steps=N_steps,
+        N_saves=N_save, # new param!
+        beam=beam,
+        HEATING=HEATING
+    )
+        
     # Save data and parameters
     save_data(res, 
         N, T, dMOT, RMOT, # MOT params
@@ -292,7 +318,9 @@ if __name__ == '__main__':
     
     except Exception:
         print("\nUsage: python ./simulation.py <T> <dMOT> <Beam> <P_b> <HEATING>\n")
-    
+        print("Error:", e)
+        exit()
+
     try:
         simulation(N=int(1e5), T=T, dMOT=dMOT, beam=beam, HEATING=HEATING)
     except Exception as e:
