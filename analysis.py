@@ -718,7 +718,7 @@ def plot_temperature(simul_path: str):
 
 def CreateGif_desnity(T: float, dMOT: float, beam: Beam, middle_folder='', fname=''):
 
-    simul_path = data_fname(T, dMOT, beam.name, middle_folder, fname)
+    simul_path = data_fname(T, dMOT, beam.name, middle_folder)
 
     xs= LoadPosition(simul_path)
     z_max = np.max(xs[:, 1, :])
