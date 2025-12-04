@@ -315,8 +315,20 @@ if __name__ == '__main__':
             beam = LGBeamL1(P_b=P_b, lambda_b=LGBeam_Lambda, w0_b=19e-6)
         elif beam_name == 'Gauss':
             beam = GaussianBeam(P_b=P_b, lambda_b=GaussBeam_Lambda, w0_b=19e-6)
-    
-    except Exception:
+        else:
+            raise ValueError(f"Unknown beam name: {beam_name}")
+
+        # --- enable LUT-based intensity for speed (SciPy-backed) ---
+        # tune these bounds / resolutions as needed
+        beam.enable_intensity_lut(
+            rho_max=2.0,    # dimensionless rho range you care about
+            Nrho=10000,
+            zeta_min=0.0,   # use negative if particles explore zeta < 0
+            zeta_max=2.0,
+            Nzeta=10000,
+        ) # with this LUT complexity, in 3D we would obtain a 500x500x500 grid
+    # exit()
+    except Exception as e:
         print("\nUsage: python ./simulation.py <T> <dMOT> <Beam> <P_b> <HEATING>\n")
         print("Error:", e)
         exit()

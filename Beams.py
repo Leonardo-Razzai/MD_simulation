@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.ndimage import map_coordinates
-
+import sys
 from Dynamics import *
 
 class Beam:
@@ -88,12 +88,14 @@ class Beam:
         Precompute a 2D lookup table for intensity I(rho, zeta)
         on a regular grid and enable fast interpolation.
 
-        Assumes cylindrical symmetry
+        Assumes cylindrical symmetry. TODO: implement also the asymmetric case.
         """
         rho = np.linspace(0.0, rho_max, Nrho)
         zeta = np.linspace(zeta_min, zeta_max, Nzeta)
         R, Z = np.meshgrid(rho, zeta, indexing="ij")
         I = self.intensity_analytic(R, Z)
+        # print(sys.getsizeof(I)/(1e6)) # this is the size of the LUT in MB
+        
         self._rho_lut = rho
         self._zeta_lut = zeta
         self._I_lut = I
