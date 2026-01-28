@@ -2,7 +2,7 @@ import numpy as np
 from Heating  import *
 from Beams import *
 
-from tqdm import trange
+# from tqdm import trange
 
 def Heating_1(xs, vs, dt, i, beam=GaussianBeam()):
     sigma_i_rho, sigma_i_zeta = np.std(vs[i], axis=1) # std across atoms
@@ -80,7 +80,7 @@ def verlet(x0, v0, a_func, dt, steps, beam=GaussianBeam(), HEATING=False, progre
     xs[1] = xs[0] + v0*dt + 0.5*a0*dt**2
 
     # Loop with optional progress bar
-    iterator = trange(1, steps, desc="Simulation", disable=not progress, mininterval=1.0)
+    iterator = range(steps)
     for i in iterator:
         t = (i+1)*dt
         ts[i+1] = t
