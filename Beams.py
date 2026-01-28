@@ -1,5 +1,7 @@
 import numpy as np
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
+from scipy.ndimage import map_coordinates
+import sys
 from Dynamics import *
 
 class Beam:
@@ -13,6 +15,15 @@ class Beam:
         self.P_b = P_b
         self.lambda_b = lambda_b
         self.w0_b = w0_b
+
+        # LUT-related attributes for intensity(rho, zeta)
+        self._use_intensity_lut = False
+        self._rho_lut = None
+        self._zeta_lut = None
+        self._I_lut = None
+        self._drho = None
+        self._dzeta = None
+
         self.update_props()
 
     def update_props(self):
@@ -44,9 +55,98 @@ class Beam:
     def w(self, z: float):
         """Beam radius as function of zeta (dimensionless)."""
         return np.sqrt(1 + z**2)
-    
+
     def beta(self, zeta):
         return 1 / (1 + zeta**2)
+
+    # --- intensity interface (to be overridden) ---
+    def intensity_analytic(self, rho, zeta):
+        """
+        Analytic intensity profile I(rho, zeta) for the specific beam.
+        Subclasses must override this.
+        """
+        raise NotImplementedError
+
+    def intensity(self, rho, zeta):
+        """
+        Uses LUT when enabled, otherwise falls back to analytic formula.
+        """
+        if self._use_intensity_lut:
+            return self._intensity_from_lut(rho, zeta)
+        return self.intensity_analytic(rho, zeta)
+
+    # --- LUT utilities -------------------------------------------------
+    def enable_intensity_lut(
+        self,
+        rho_max=4.0,
+        Nrho=256,
+        zeta_min=-4.0,
+        zeta_max=4.0,
+        Nzeta=256,
+    ):
+        """
+        Precompute a 2D lookup table for intensity I(rho, zeta)
+        on a regular grid and enable fast interpolation.
+
+        Assumes cylindrical symmetry. TODO: implement also the asymmetric case.
+        """
+        rho = np.linspace(0.0, rho_max, Nrho)
+        zeta = np.linspace(zeta_min, zeta_max, Nzeta)
+        R, Z = np.meshgrid(rho, zeta, indexing="ij")
+        I = self.intensity_analytic(R, Z)
+        # print(sys.getsizeof(I)/(1e6)) # this is the size of the LUT in MB
+        
+        self._rho_lut = rho
+        self._zeta_lut = zeta
+        self._I_lut = I
+        self._drho = rho[1] - rho[0]
+        self._dzeta = zeta[1] - zeta[0]
+        self._use_intensity_lut = True
+
+    def disable_intensity_lut(self):
+        """Disable the LUT usage and free the vars."""
+        self._use_intensity_lut = False
+        self._rho_lut = None
+        self._zeta_lut = None
+        self._I_lut = None
+        self._drho = None
+        self._dzeta = None
+
+    def _intensity_from_lut(self, rho, zeta):
+        """
+        Use scipy.ndimage.map_coordinates to interpolate from the LUT.
+
+        rho, zeta can be scalars or arrays; broadcasting is supported.
+        Outside the LUT domain we return 0 (via mode="constant").
+        """
+        if not self._use_intensity_lut or self._I_lut is None:
+            raise RuntimeError("Intensity LUT is not enabled")
+
+        rho = np.asarray(rho)
+        zeta = np.asarray(zeta)
+
+        rho_b, zeta_b = np.broadcast_arrays(rho, zeta)
+        shape = rho_b.shape
+
+        rho_abs = np.abs(rho_b)
+        rho0 = self._rho_lut[0]
+        zeta0 = self._zeta_lut[0]
+
+        # fractional indices in LUT space
+        ir = (rho_abs - rho0) / self._drho
+        iz = (zeta_b - zeta0) / self._dzeta
+
+        coords = np.vstack([ir.ravel(), iz.ravel()])
+        I_flat = map_coordinates(
+            self._I_lut,
+            coords,
+            order=1,          # linear interpolation
+            mode="constant",  # outside grid -> cval
+            cval=0.0,
+            prefilter=False,  # faster for order=1
+        )
+
+        return I_flat.reshape(shape)
 
     # --- plotting utilities ---
     def plot_trans_intensity(self, x=np.linspace(-2, 2, 100), y=np.linspace(-2, 2, 100)):
@@ -80,25 +180,40 @@ class GaussianBeam(Beam):
 
     def __init__(self, P_b=1, lambda_b=1064e-9, w0_b=19e-6):
         super().__init__("Gauss", P_b, lambda_b, w0_b)
+        # optional: precompute this constant once
+        self._pref = self.lambda_b**2 / (np.pi**2 * self.w0_b**2)
 
-    def intensity(self, rho, zeta):
+    def intensity_analytic(self, rho, zeta):
         b = self.beta(zeta)
-        return b * np.exp(-2 * b * rho**2)
+        return b * np.exp(-2 * b * rho**2)  # hot line
 
-    def du_drho(self, rho, zeta):
-        b = self.beta(zeta)
-        return 4 * b * rho * self.intensity(rho, zeta)
-
-    def du_dzeta(self, rho, zeta):
-        b = self.beta(zeta)
-        pref = self.lambda_b**2 / (np.pi**2 * self.w0_b**2)
-        return pref * 2 * b * zeta * (1 - 2 * b * rho**2) * self.intensity(rho, zeta)
+    # intensity() inherited from Beam:
+    #   -> uses LUT if enabled, otherwise intensity_analytic
 
     def acc(self, x):
+        """
+        Vectorized acceleration:
+        x: shape (2, N) or (2,) with (rho, zeta).
+        Returns array shape (2, N) with (a_rho, a_zeta).
+        """
         rho, zeta = x
-        acc_rho = -self.du_drho(rho, zeta)
-        acc_zeta = -self.du_dzeta(rho, zeta) - g / self.as_zeta
-        return np.array([acc_rho, acc_zeta])
+
+        # Compute beta and intensity ONCE
+        b = self.beta(zeta)
+        I = self.intensity(rho, zeta)   # single analytic or LUT call
+
+        # du/drho = 4 b rho I
+        du_drho = 4.0 * b * rho * I
+
+        # du/dzeta = pref * 2 b zeta (1 - 2 b rho^2) I
+        # pref precomputed in __init__
+        du_dzeta = self._pref * 2.0 * b * zeta * (1.0 - 2.0 * b * rho**2) * I
+
+        acc_rho = -du_drho
+        acc_zeta = -du_dzeta - g / self.as_zeta
+
+        return np.vstack((acc_rho, acc_zeta))
+
 
 
 class LGBeamL1(Beam):
@@ -110,7 +225,8 @@ class LGBeamL1(Beam):
     def __init__(self, P_b=1, lambda_b=650e-9, w0_b=19e-6):
         super().__init__("LG", P_b, lambda_b, w0_b)
 
-    def intensity(self, rho, zeta):
+    # intensity() inherited from Beam: LUT if enabled, else analytic
+    def intensity_analytic(self, rho, zeta):
         b = self.beta(zeta)
         s = 2 * b * rho**2
         return 2 * b * s * np.exp(-s)
@@ -139,7 +255,7 @@ class LGBeamL1(Beam):
 # -------------------------------------------------------------------------
 # Beam dictionary for easy lookup
 # -------------------------------------------------------------------------
-beams = {
+beams = { # TODO it is probably a bit more robust to use an enum here
     "Gauss": GaussianBeam(),
     "LG": LGBeamL1()
 }
@@ -148,8 +264,37 @@ beams = {
 # Example usage
 # -------------------------------------------------------------------------
 if __name__ == "__main__":
+    # Example: enable LUT for Gaussian beam to speed intensity calls
+    # -> with a very coarse grid to demonstrate functionality
+    beams["Gauss"].enable_intensity_lut(
+        rho_max=4.0,
+        Nrho=5,
+        zeta_min=0.0,
+        zeta_max=4.0,
+        Nzeta=5,
+    )
+    beams["LG"].enable_intensity_lut(
+        rho_max=4.0,
+        Nrho=5,
+        zeta_min=0.0,
+        zeta_max=4.0,
+        Nzeta=5,
+    )
+
     for name, beam in beams.items():
         beam.plot_trans_intensity()
         plt.show()
         beam.plot_long_intensity()
         plt.show()
+        
+    # ...and in full resolution
+    
+    beams["Gauss"].disable_intensity_lut()
+    beams["LG"].disable_intensity_lut()
+
+    for name, beam in beams.items():
+        beam.plot_trans_intensity()
+        plt.show()
+        beam.plot_long_intensity()
+        plt.show()
+        

@@ -2,7 +2,6 @@ from Dynamics import *
 from Verlet import *
 import numpy as np
 import os
-import sys
 from Beams import GaussianBeam, LGBeamL1
 from tqdm import trange
 
@@ -23,7 +22,7 @@ GaussBeam_Lambda = 1064e-9 # m
 LGBeam_Lambda = 772e-9 # m
 
 # FLAGS
-Diff_Powers = False
+Diff_Powers = True
 
 def print_simulation_parameters(
     N, T, dMOT, RMOT,
@@ -130,7 +129,14 @@ def write_params_to_file(
 
         f.write("\n==============================\n")
 
-def simulation(N=int(1e5), T=15, dMOT=5, beam=GaussianBeam(), HEATING=False):
+def simulation(
+    N=int(1e5),
+    T=15,
+    dMOT=5,
+    beam=GaussianBeam(),
+    HEATING=False,
+):
+    
     """
     Run a full atom trajectory simulation.
 
@@ -163,6 +169,7 @@ def simulation(N=int(1e5), T=15, dMOT=5, beam=GaussianBeam(), HEATING=False):
     T = T * 1e-6 # K
     dMOT = dMOT * 1e-3 # m
 
+    beam_name = beam.name
     zR = beam.zR
     vs_rho = beam.vs_rho
     vs_zeta = beam.vs_zeta
@@ -204,15 +211,34 @@ def simulation(N=int(1e5), T=15, dMOT=5, beam=GaussianBeam(), HEATING=False):
             beam_name=beam_name, P_b=P_b, lambda_b=beam.lambda_b, w0_b=beam.w0_b
         )
 
-    xres, vres = evolve_up_to(x0=x0, v0=v0, acc=beam.acc, dt=dt, N_steps=N_steps, z_min=10, HEATING=HEATING)
-    res = verlet(x0=xres, v0=vres, a_func=beam.acc, dt=dt, steps=N_steps, HEATING=HEATING)
+    # # First stage: same as before (Python evolve_up_to)
+    x_prepared, v_prepared = evolve_up_to(
+        x0=x0,
+        v0=v0,
+        acc=beam.acc,
+        dt=dt,
+        N_steps=N_steps,
+        z_min=10,
+        HEATING=HEATING
+    )
 
+    res = verlet(
+        x0=x_prepared,
+        v0=v_prepared,
+        a_func=beam.acc,
+        dt=dt,
+        N_steps=N_steps,
+        N_saves=N_save, # new param!
+        beam=beam,
+        HEATING=HEATING
+    )
+        
     # Save data and parameters
-    save_data(res, 
-        N, T, dMOT, RMOT, # MOT params
-        beam_name, beam.P_b, beam.lambda_b, beam.w0_b, HEATING, # Beam params
-        w0, zR, tau, # length and time scales
-        rho_max, zeta_min, zeta_max, # max/min position values
+    save_data(res=res, 
+        N=N, T=T, dMOT=dMOT, RMOT=RMOT, # MOT params
+        beam_name=beam_name, P_b=beam.P_b, HEATING=HEATING, # Beam params
+        w0=beam.w0_b, zR=beam.zR, tau=beam.tau, # length and time scales
+        rho_max=rho_max, zeta_min=zeta_min, zeta_max=zeta_max, # max/min position values
         t_max=T_MAX, dt=dt, N_steps=N_steps # time steps
     )
 
@@ -222,7 +248,7 @@ def evolve_up_to(x0, v0, acc, dt, N_steps, z_min=5, HEATING=False):
 
 def save_data(res, 
     N: int, T: float, dMOT: float, RMOT: float, # MOT params
-    beam_name: str, P_b: float, lambda_b: float, w0_b: float, HEATING: bool, # Beam params
+    beam_name: str, P_b: float, HEATING: bool, # Beam params
     w0: float, zR: float, tau: float, # length and time scales
     rho_max: float, zeta_min: float, zeta_max: float, # max/min position values
     t_max: float, dt: float, N_steps: int # time steps
@@ -254,8 +280,9 @@ def save_data(res,
         small_res = res[i]
         small_res = small_res[idx]
         np.save(res_folder + f_names[i], small_res)
-
+    
     # Save parameters in a human-readable text file
+    beam = beams[beam_name]
     write_params_to_file(res_folder,
                          N, T, dMOT, RMOT,
                          beam_name, P_b, beam.lambda_b, beam.w0_b, HEATING,
@@ -290,10 +317,24 @@ if __name__ == '__main__':
             beam = LGBeamL1(P_b=P_b, lambda_b=LGBeam_Lambda, w0_b=19e-6)
         elif beam_name == 'Gauss':
             beam = GaussianBeam(P_b=P_b, lambda_b=GaussBeam_Lambda, w0_b=19e-6)
-    
-    except Exception:
+        else:
+            raise ValueError(f"Unknown beam name: {beam_name}")
+
+        # --- enable LUT-based intensity for speed (SciPy-backed) ---
+        # tune these bounds / resolutions as needed
+        beam.enable_intensity_lut(
+            rho_max=2.0,    # dimensionless rho range you care about
+            Nrho=10000,
+            zeta_min=0.0,   # use negative if particles explore zeta < 0
+            zeta_max=2.0,
+            Nzeta=10000,
+        ) # with this LUT complexity, in 3D we would obtain a 500x500x500 grid
+    # exit()
+    except Exception as e:
         print("\nUsage: python ./simulation.py <T> <dMOT> <Beam> <P_b> <HEATING>\n")
-    
+        print("Error:", e)
+        exit()
+
     try:
         simulation(N=int(1e5), T=T, dMOT=dMOT, beam=beam, HEATING=HEATING)
     except Exception as e:

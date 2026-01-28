@@ -1,5 +1,6 @@
 import math
 import numpy as np
+import scipy.constants as const
 
 data_folder = './Results/'
 pos_fname = 'position.npy'
@@ -7,17 +8,17 @@ vel_fname = 'velocity.npy'
 time_fname = 'time.npy'
 
 # Physical constants
-c = 299792458                   # light vel in vacuum (m/s)
-kB = 1.38064852E-23             # Boltzmann constant (J/K)
-g = 9.81                         # Grav. Acc. (m/s^2)
-hbar = 1.05457182e-34           # reduced Planck constant (J*s)
+c = const.c                     # light vel in vacuum (m/s)
+kB = const.Boltzmann            # Boltzmann constant (J/K)
+g = const.g                     # Grav. Acc. (m/s^2)
+hbar = const.hbar               # reduced Planck constant (J*s)
 
-#Trap                        # power beam (W)
-R_trap = 30E-6                  # Fiber dimension (m)
+#Trap                           # power beam (W)
+R_trap = 30E-6                  # Fiber radius (m)
 
 # Rb
-m_Rb = 87*1.66053904E-27        # Mass Rb 87
-Gamma_1 = 2 * np.pi * 6.065e6 # Natural linewidth in Hz
+m_Rb = 87 * const.physical_constants['atomic mass constant'][0] # Mass Rb 87
+Gamma_1 = 2 * np.pi * 6.065e6   # Natural linewidth in Hz
 Gamma_2 = 2 * np.pi * 5.746e6
 omega_1 = 2 * np.pi * 377.1075 * 1e12 # Transition frequency 5S1/2 -> 5P3/2 in Hz
 omega_2 = 2 * np.pi * 384.2305 * 1e12 # Transition frequency 5S1/2 -> 5S3/2  in Hz
