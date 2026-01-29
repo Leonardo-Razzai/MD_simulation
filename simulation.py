@@ -19,7 +19,7 @@ N_save = 30 # number of saved steps
 DT_save = DT * N_save # s
 
 GaussBeam_Lambda = 1064e-9 # m
-LGBeam_Lambda = 772e-9 # m
+LGBeam_Lambda = 532e-9 # m
 
 # FLAGS
 Diff_Powers = False # If True saves data in specific folder for postprocessing
