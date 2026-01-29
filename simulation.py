@@ -220,6 +220,7 @@ def simulation(
         dt=dt,
         N_steps=N_steps,
         z_min=10,
+        beam=beam,
         HEATING=HEATING
     )
 
@@ -243,7 +244,7 @@ def simulation(
         t_max=T_MAX, dt=dt*tau, N_steps=N_steps # time steps
     )
 
-def evolve_up_to(x0, v0, acc, dt, N_steps, z_min=5, HEATING=False):
+def evolve_up_to(x0, v0, acc, dt, N_steps, z_min=5, beam=None, HEATING=False):
     res = verlet_up_to(x0, v0, acc, dt, N_steps, z_min=z_min, beam=beam, HEATING=HEATING)
     return res
 
