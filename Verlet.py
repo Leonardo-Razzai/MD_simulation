@@ -97,11 +97,6 @@ def verlet(
     save_indices = np.linspace(0, N_steps, N_saves, dtype=int)
     save_indices = np.unique(save_indices)  # just in case we have repeated indices
 
-    # Loop with optional progress bar
-    iterator = range(steps)
-    for i in iterator:
-        t = (i+1)*dt
-        ts[i+1] = t
     # Pre-allocate only the saved snapshots
     xs_save = np.zeros((len(save_indices), 2, N), dtype=float)
     vs_save = np.zeros_like(xs_save)
@@ -131,7 +126,7 @@ def verlet(
         if save_ptr < len(save_indices):
             next_save_step = save_indices[save_ptr]
 
-    iterator = trange(1, N_steps, desc="Simulation", disable=not progress, mininterval=1.0)
+    iterator = range(1, N_steps)
     for step in iterator:
         # At the start of this iteration:
         #   xs_prev = x_{step-1}
