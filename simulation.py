@@ -244,7 +244,7 @@ def simulation(
     )
 
 def evolve_up_to(x0, v0, acc, dt, N_steps, z_min=5, HEATING=False):
-    res = verlet_up_to(x0, v0, acc, dt, N_steps, z_min=z_min, HEATING=HEATING)
+    res = verlet_up_to(x0, v0, acc, dt, N_steps, z_min=z_min, beam=beam, HEATING=HEATING)
     return res
 
 def save_data(res, 
