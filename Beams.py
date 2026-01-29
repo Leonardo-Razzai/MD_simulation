@@ -222,7 +222,7 @@ class LGBeamL1(Beam):
     Provides dimensionless accelerations in (rho, zeta).
     """
 
-    def __init__(self, P_b=1, lambda_b=532-9, w0_b=19e-6):
+    def __init__(self, P_b=1, lambda_b=532e-9, w0_b=19e-6):
         super().__init__("LG", P_b, lambda_b, w0_b)
 
     # intensity() inherited from Beam: LUT if enabled, else analytic
