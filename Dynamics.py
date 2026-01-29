@@ -3,9 +3,9 @@ import numpy as np
 import scipy.constants as const
 
 data_folder = './Results/'
-pos_fname = 'position.npy'
-vel_fname = 'velocity.npy'
-time_fname = 'time.npy'
+pos_fname = 'position.npz'
+vel_fname = 'velocity.npz'
+time_fname = 'time.npz'
 
 # Physical constants
 c = const.c                     # light vel in vacuum (m/s)

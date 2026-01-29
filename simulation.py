@@ -7,22 +7,23 @@ from tqdm import trange
 
 # MOT characteristics
 RMOT = 1e-3 # m
-VMOT = 4/3 * np.pi * RMOT**3
+VMOT = 4/3 * np.pi * RMOT**3 # m^3
 dMOT_max = 20e-3 # m
-h_max = dMOT_max + RMOT
+h_max = dMOT_max + RMOT # m
 
-T_MAX = 80e-3
+T_MAX = 80e-3 # s
 N_steps = int(4e3)
-DT = T_MAX / N_steps
+DT = T_MAX / N_steps # s
 
 N_save = 30 # number of saved steps
-DT_save = DT * N_save
+DT_save = DT * N_save # s
 
 GaussBeam_Lambda = 1064e-9 # m
 LGBeam_Lambda = 772e-9 # m
 
 # FLAGS
-Diff_Powers = True
+Diff_Powers = False # If True saves data in specific folder for postprocessing
+INT_LUT = False # If True uses pre-computed lut for beam intensity 
 
 def print_simulation_parameters(
     N, T, dMOT, RMOT,
@@ -239,7 +240,7 @@ def simulation(
         beam_name=beam_name, P_b=beam.P_b, HEATING=HEATING, # Beam params
         w0=beam.w0_b, zR=beam.zR, tau=beam.tau, # length and time scales
         rho_max=rho_max, zeta_min=zeta_min, zeta_max=zeta_max, # max/min position values
-        t_max=T_MAX, dt=dt, N_steps=N_steps # time steps
+        t_max=T_MAX, dt=dt*tau, N_steps=N_steps # time steps
     )
 
 def evolve_up_to(x0, v0, acc, dt, N_steps, z_min=5, HEATING=False):
@@ -279,7 +280,7 @@ def save_data(res,
     for i in iterator:
         small_res = res[i]
         small_res = small_res[idx]
-        np.save(res_folder + f_names[i], small_res)
+        np.savez_compressed(res_folder + f_names[i], small_res)
     
     # Save parameters in a human-readable text file
     beam = beams[beam_name]
@@ -322,13 +323,14 @@ if __name__ == '__main__':
 
         # --- enable LUT-based intensity for speed (SciPy-backed) ---
         # tune these bounds / resolutions as needed
-        beam.enable_intensity_lut(
-            rho_max=2.0,    # dimensionless rho range you care about
-            Nrho=10000,
-            zeta_min=0.0,   # use negative if particles explore zeta < 0
-            zeta_max=2.0,
-            Nzeta=10000,
-        ) # with this LUT complexity, in 3D we would obtain a 500x500x500 grid
+        if INT_LUT:
+            beam.enable_intensity_lut(
+                rho_max=2.0,    # dimensionless rho range you care about
+                Nrho=10000,
+                zeta_min=0.0,   # use negative if particles explore zeta < 0
+                zeta_max=2.0,
+                Nzeta=10000,
+            ) # with this LUT complexity, in 3D we would obtain a 500x500x500 grid
     # exit()
     except Exception as e:
         print("\nUsage: python ./simulation.py <T> <dMOT> <Beam> <P_b> <HEATING>\n")
