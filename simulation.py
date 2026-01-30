@@ -22,7 +22,7 @@ GaussBeam_Lambda = 1064e-9 # m
 LGBeam_Lambda = 532e-9 # m
 
 # FLAGS
-Diff_Powers = False # If True saves data in specific folder for postprocessing
+Diff_Powers = True # If True saves data in specific folder for postprocessing
 INT_LUT = False # If True uses pre-computed lut for beam intensity 
 
 def print_simulation_parameters(
@@ -259,15 +259,16 @@ def save_data(res,
     Save raw simulation results and main parameters to disk.
     """
 
+    beam_folder = beam_name
+    out_folder = f'res_T={T*1e6:.0f}uK_dMOT={dMOT*1e3:.0f}mm'
+
+    if HEATING:
+        beam_folder += '/Heating'
     if Diff_Powers:
-        res_folder = data_folder + f'{beam_name}/Different_Powers/res_T={T*1e6:.0f}uK_dMOT={dMOT*1e3:.0f}mm_P={P_b}W/'
-    else:
-        if HEATING:
-            out_folder = beam_name + '/Heating'
-        else:
-            out_folder = beam_name
-            
-        res_folder = data_folder + f'{out_folder}/res_T={T*1e6:.0f}uK_dMOT={dMOT*1e3:.0f}mm/'
+        beam_folder += '/DiffPowers'
+        out_folder += f'_P={P_b}W'
+        
+    res_folder = data_folder + f'{beam_folder}/{out_folder}/'
 
     os.makedirs(res_folder, exist_ok=True)
 
